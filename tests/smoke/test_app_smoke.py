@@ -32,6 +32,12 @@ def app(monkeypatch):
             "smi_gpu_name": None,
         },
     )
+    # Mirror main.py's startup contract: the DB must be initialized before the
+    # window is built (a tab queries the sessions table during construction).
+    # %APPDATA% is redirected to a tmp dir by the autouse isolate_appdata fixture.
+    from app.data import db
+
+    db.init_db()
     try:
         from app.ui.app_window import AppWindow
 
