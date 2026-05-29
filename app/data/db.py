@@ -153,7 +153,7 @@ def update_session(session_id: int, **fields) -> None:
     cols = ", ".join(f"{k} = ?" for k in fields)
     vals = list(fields.values()) + [session_id]
     with get_conn() as c:
-        c.execute(f"UPDATE sessions SET {cols} WHERE id = ?", vals)
+        c.execute(f"UPDATE sessions SET {cols} WHERE id = ?", vals)  # nosec B608 - cols validated against _SESSION_COLUMNS allowlist; values parameterized
 
 
 def get_session(session_id: int) -> dict[str, Any] | None:
@@ -243,7 +243,7 @@ def update_speaker_profile(profile_id: int, **fields) -> None:
     cols = ", ".join(f"{k} = ?" for k in fields)
     vals = list(fields.values()) + [profile_id]
     with get_conn() as c:
-        c.execute(f"UPDATE speaker_profiles SET {cols} WHERE id = ?", vals)
+        c.execute(f"UPDATE speaker_profiles SET {cols} WHERE id = ?", vals)  # nosec B608 - cols validated against _SPEAKER_COLUMNS allowlist; values parameterized
 
 
 def delete_speakers_for_session(session_id: int) -> None:
