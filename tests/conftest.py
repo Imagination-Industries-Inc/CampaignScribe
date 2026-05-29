@@ -36,6 +36,9 @@ class _InMemoryKeyring(KeyringBackend):
 
 @pytest.fixture(autouse=True)
 def mem_keyring():
+    # NOTE: keyring is a process-level global. This fixture is correct for
+    # sequential runs but is NOT safe under pytest-xdist worker parallelism.
+    # Do not add `-n auto` without replacing this with per-test isolation.
     prev = keyring.get_keyring()
     keyring.set_keyring(_InMemoryKeyring())
     yield

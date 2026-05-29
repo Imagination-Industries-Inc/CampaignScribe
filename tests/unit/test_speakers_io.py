@@ -84,3 +84,9 @@ def test_profiles_to_speakers_doc_routes_players_and_non_players():
     assert "Background" in np_names
     bg = next(n for n in doc["known_non_players"] if n["name"] == "Background")
     assert bg["role"] == "ignore"
+    # Routing must be a partition: each profile lands in exactly one list.
+    assert "DM Josh" not in player_names
+    assert "Background" not in player_names
+    assert "Mike" not in np_names
+    assert len(doc["players"]) == 1
+    assert len(doc["known_non_players"]) == 2
