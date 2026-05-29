@@ -1,0 +1,37 @@
+[project]
+name = "campaignscribe"
+version = "0.0.0"
+description = "Windows desktop app for transcribing and summarizing tabletop RPG sessions"
+requires-python = ">=3.11"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = ["build", "dist", "build_workspace", ".venv"]
+
+[tool.ruff.lint]
+# Start conservative: pyflakes (F), pycodestyle errors (E), warnings (W),
+# isort (I), pyupgrade (UP), bugbear (B). Tighten over time.
+select = ["E", "F", "W", "I", "UP", "B"]
+# E501 line-too-long is handled by the formatter; ignore the linter copy.
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.11"
+# Gradual mode: non-blocking. The codebase is not fully typed yet.
+ignore_missing_imports = true
+warn_unused_ignores = false
+warn_return_any = false
+check_untyped_defs = false
+    # tests/ excluded for now (gradual typing); revisit once the suite is typed.
+exclude = ["build/", "dist/", "build_workspace/", "tests/"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "gui: tests that construct Tk windows (run on windows-latest / a display)",
+]
+addopts = "-ra"

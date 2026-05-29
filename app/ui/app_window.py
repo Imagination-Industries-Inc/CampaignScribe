@@ -10,28 +10,27 @@ from tkinter import ttk
 
 from app import __version__, config
 from app.core.transcriber import check_gpu
+from app.ui.build_profile_tab import BuildProfileTab
 from app.ui.common import open_path_native, reveal_in_folder
+from app.ui.discover_tab import DiscoverTab
+from app.ui.history_tab import HistoryTab
+from app.ui.refine_tab import RefineTab
 from app.ui.settings_dialog import SettingsDialog
-from app.ui.tab1_onboard import Tab1Onboard
-from app.ui.tab2_refine import Tab2Refine
-from app.ui.tab3_manage import Tab3Manage
-from app.ui.tab4_history import Tab4History
-from app.ui.tab5_transcribe import Tab5Transcribe
-from app.ui.tab6_summarize import Tab6Summarize
+from app.ui.summarize_tab import SummarizeTab
 from app.ui.theme import (
+    BTN_GHOST,
+    LBL_EYEBROW,
+    LBL_STATUS_INFO,
+    LBL_STATUS_WARN,
+    LBL_TITLE,
+    S_2,
+    S_3,
+    S_4,
+    StatusLevel,
     apply_theme,
     color,
-    BTN_GHOST,
-    LBL_TITLE,
-    LBL_EYEBROW,
-    LBL_STATUS_OK,
-    LBL_STATUS_WARN,
-    LBL_STATUS_ERR,
-    LBL_STATUS_INFO,
-    PAD_BUTTON,
-    S_2, S_3, S_4,
-    StatusLevel,
 )
+from app.ui.transcribe_tab import TranscribeTab
 
 
 class AppWindow(tk.Tk):
@@ -79,9 +78,9 @@ class AppWindow(tk.Tk):
             background=color("BG_CHROME"),
         ).pack(anchor="w")
 
-        ttk.Button(
-            topbar, text="⚙ Settings", style=BTN_GHOST, command=self.open_settings
-        ).pack(side="right", padx=S_4, pady=S_3)
+        ttk.Button(topbar, text="⚙ Settings", style=BTN_GHOST, command=self.open_settings).pack(
+            side="right", padx=S_4, pady=S_3
+        )
 
         # ---- API key banner (shown only when missing) --------------------
         # Using a plain tk.Frame because we want a one-off warm tint that
@@ -98,27 +97,31 @@ class AppWindow(tk.Tk):
         ).pack(side="left")
 
         self.banner_label = banner_inner  # backwards-compatible attribute
-        self._refresh_banner()
 
         # ---- Notebook ----------------------------------------------------
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill="both", expand=True, padx=S_2, pady=S_2)
 
-        self.tab1 = Tab1Onboard(self.notebook, self)
-        self.tab2 = Tab2Refine(self.notebook, self)
-        self.tab3 = Tab3Manage(self.notebook, self)
-        self.tab4 = Tab4History(self.notebook, self)
-        self.tab5 = Tab5Transcribe(self.notebook, self)
-        self.tab6 = Tab6Summarize(self.notebook, self)
+        # Show/hide the API-key banner. Must run AFTER self.notebook exists:
+        # when no key is stored, _refresh_banner packs the banner with
+        # before=self.notebook, so the notebook must already be created.
+        self._refresh_banner()
+
+        self.discover_tab = DiscoverTab(self.notebook, self)
+        self.refine_tab = RefineTab(self.notebook, self)
+        self.build_profile_tab = BuildProfileTab(self.notebook, self)
+        self.history_tab = HistoryTab(self.notebook, self)
+        self.transcribe_tab = TranscribeTab(self.notebook, self)
+        self.summarize_tab = SummarizeTab(self.notebook, self)
 
         # (widget, label, icon-name) in display order
         self._tab_specs = [
-            (self.tab1, "1. Discover", "discover"),
-            (self.tab3, "2. Build Profile", "profile"),
-            (self.tab5, "3. Transcribe", "transcribe"),
-            (self.tab6, "4. Summarize", "summarize"),
-            (self.tab2, "5. Refine", "refine"),
-            (self.tab4, "6. History", "history"),
+            (self.discover_tab, "1. Discover", "discover"),
+            (self.build_profile_tab, "2. Build Profile", "profile"),
+            (self.transcribe_tab, "3. Transcribe", "transcribe"),
+            (self.summarize_tab, "4. Summarize", "summarize"),
+            (self.refine_tab, "5. Refine", "refine"),
+            (self.history_tab, "6. History", "history"),
         ]
         self._tab_icons = {}  # icon-name -> {"idle": PhotoImage, "active": PhotoImage}
         for widget, label, icon in self._tab_specs:
@@ -147,7 +150,8 @@ class AppWindow(tk.Tk):
 
         self._status_dot = tk.Canvas(
             status_bar,
-            width=14, height=14,
+            width=14,
+            height=14,
             background=color("BG_CHROME"),
             highlightthickness=0,
         )
@@ -176,7 +180,12 @@ class AppWindow(tk.Tk):
         """Redraw the status dot with the given fill."""
         self._status_dot.delete("all")
         self._status_dot.create_oval(
-            2, 2, 12, 12, fill=color_hex, outline=color_hex,
+            2,
+            2,
+            12,
+            12,
+            fill=color_hex,
+            outline=color_hex,
         )
 
     def _set_status(self, level: tuple, message: str) -> None:
@@ -197,22 +206,27 @@ class AppWindow(tk.Tk):
         cuda_v = gpu.get("torch_cuda_version") or "none"
 
         if rec == "cuda":
-            msg = (f"GPU: {gpu['device_name']} ({gpu['vram_gb']} GB VRAM) — "
-                   f"torch {torch_v} (cuda {cuda_v}) — Transcription ready")
+            msg = (
+                f"GPU: {gpu['device_name']} ({gpu['vram_gb']} GB VRAM) — "
+                f"torch {torch_v} (cuda {cuda_v}) — Transcription ready"
+            )
             self._set_status(StatusLevel.OK, msg)
         elif rec == "cpu_no_cuda":
-            msg = (f"GPU detected ({gpu.get('smi_gpu_name', 'NVIDIA')}) but PyTorch "
-                   f"can't use it — falling back to CPU. "
-                   f"torch {torch_v} (built for cuda {cuda_v}). "
-                   f"Update NVIDIA driver/CUDA at nvidia.com/Download")
+            msg = (
+                f"GPU detected ({gpu.get('smi_gpu_name', 'NVIDIA')}) but PyTorch "
+                f"can't use it — falling back to CPU. "
+                f"torch {torch_v} (built for cuda {cuda_v}). "
+                f"Update NVIDIA driver/CUDA at nvidia.com/Download"
+            )
             self._set_status(StatusLevel.WARN, msg)
         elif rec == "cpu_unavailable":
-            msg = (f"PyTorch not available ({gpu.get('error', 'unknown error')}) "
-                   f"— transcription disabled")
+            msg = (
+                f"PyTorch not available ({gpu.get('error', 'unknown error')}) "
+                f"— transcription disabled"
+            )
             self._set_status(StatusLevel.ERR, msg)
         else:
-            msg = (f"No NVIDIA GPU detected — CPU mode (very slow for long files). "
-                   f"torch {torch_v}")
+            msg = f"No NVIDIA GPU detected — CPU mode (very slow for long files). torch {torch_v}"
             self._set_status(StatusLevel.WARN, msg)
 
     # ----------------------------------------------------------------------
@@ -222,13 +236,12 @@ class AppWindow(tk.Tk):
     def _set_icon(self):
         import os
         import sys
+
         try:
             if getattr(sys, "frozen", False):
                 base = sys._MEIPASS  # type: ignore[attr-defined]
             else:
-                base = os.path.dirname(
-                    os.path.abspath(os.path.join(__file__, "..", ".."))
-                )
+                base = os.path.dirname(os.path.abspath(os.path.join(__file__, "..", "..")))
             ico = os.path.join(base, "assets", "icon.ico")
             if os.path.exists(ico):
                 self.iconbitmap(ico)
@@ -250,7 +263,14 @@ class AppWindow(tk.Tk):
         dlg = SettingsDialog(self)
         self.wait_window(dlg)
         self._refresh_banner()
-        for tab in (self.tab1, self.tab2, self.tab3, self.tab4, self.tab5, self.tab6):
+        for tab in (
+            self.discover_tab,
+            self.refine_tab,
+            self.build_profile_tab,
+            self.history_tab,
+            self.transcribe_tab,
+            self.summarize_tab,
+        ):
             if hasattr(tab, "on_settings_changed"):
                 tab.on_settings_changed()
 
@@ -265,10 +285,10 @@ class AppWindow(tk.Tk):
         menubar = tk.Menu(self)
 
         filemenu = tk.Menu(menubar, tearoff=0)
-        filemenu.add_command(label="Open Audio…", accelerator="Ctrl+O",
-                             command=self._menu_open_audio)
-        filemenu.add_command(label="Settings…", accelerator="Ctrl+,",
-                             command=self.open_settings)
+        filemenu.add_command(
+            label="Open Audio…", accelerator="Ctrl+O", command=self._menu_open_audio
+        )
+        filemenu.add_command(label="Settings…", accelerator="Ctrl+,", command=self.open_settings)
         filemenu.add_separator()
         filemenu.add_command(label="Exit", command=self._on_close)
         menubar.add_cascade(label="File", menu=filemenu)
@@ -312,8 +332,8 @@ class AppWindow(tk.Tk):
             tab._add_files()
         else:
             self.jump_to_tab(0)
-            if hasattr(self.tab1, "_browse_audio"):
-                self.tab1._browse_audio()
+            if hasattr(self.discover_tab, "_browse_audio"):
+                self.discover_tab._browse_audio()
 
     def _run_current_tab(self):
         """F5: invoke the current tab's primary action button if enabled."""
@@ -334,6 +354,7 @@ class AppWindow(tk.Tk):
 
     def _show_getting_started(self):
         from tkinter import messagebox
+
         messagebox.showinfo(
             "Getting Started",
             "CampaignScribe needs two free credentials (Settings ⚙):\n\n"
@@ -351,6 +372,7 @@ class AppWindow(tk.Tk):
     def _asset_dir(self):
         import os
         import sys
+
         if getattr(sys, "frozen", False):
             base = sys._MEIPASS  # type: ignore[attr-defined]
         else:
@@ -361,6 +383,7 @@ class AppWindow(tk.Tk):
         """Load a 16px tab icon as a PhotoImage, or None if unavailable.
         References are held in self._tab_icons so Tk doesn't GC them."""
         import os
+
         try:
             p = os.path.join(self._asset_dir(), "tab-icons", f"{name}-{state}-16.png")
             if os.path.exists(p):
@@ -417,6 +440,7 @@ class AboutDialog(tk.Toplevel):
         self._logo = None
         try:
             import os
+
             p = os.path.join(master._asset_dir(), "icon-128.png")
             if os.path.exists(p):
                 self._logo = tk.PhotoImage(file=p)
@@ -427,14 +451,19 @@ class AboutDialog(tk.Toplevel):
         ttk.Label(self, text="CampaignScribe", style=LBL_TITLE).pack()
         ttk.Label(self, text=f"Version {__version__}", style=LBL_EYEBROW).pack(pady=(2, 10))
         ttk.Label(
-            self, text="Transcribe and summarize tabletop RPG sessions.",
-            wraplength=420, justify="center",
+            self,
+            text="Transcribe and summarize tabletop RPG sessions.",
+            wraplength=420,
+            justify="center",
         ).pack(padx=24)
         ttk.Label(
             self,
-            text=("Built on WhisperX, pyannote.audio, and the Anthropic Claude API.\n"
-                  "github.com/MikeRompel/CampaignScribe"),
-            wraplength=420, justify="center",
+            text=(
+                "Built on WhisperX, pyannote.audio, and the Anthropic Claude API.\n"
+                "github.com/Imagination-Industries-Inc/CampaignScribe"
+            ),
+            wraplength=420,
+            justify="center",
         ).pack(padx=24, pady=(8, 4))
         ttk.Button(self, text="Close", command=self.destroy).pack(pady=12)
 
