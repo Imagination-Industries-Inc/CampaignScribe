@@ -30,8 +30,11 @@ def test_get_conn_enables_foreign_keys():
 def test_update_session_rejects_unknown_column():
     db.init_db()
     sid = db.create_session("Test")
+    # An unknown / injected COLUMN NAME must be rejected by the allowlist.
+    # (Values are safely parameterized; column names are not, so the guard
+    # protects against injected column identifiers like this one.)
     with pytest.raises(ValueError):
-        db.update_session(sid, status="done; DROP TABLE sessions")
+        db.update_session(sid, **{"status = 1; DROP TABLE sessions": "x"})
 
 
 def test_update_session_accepts_allowlisted_column():
