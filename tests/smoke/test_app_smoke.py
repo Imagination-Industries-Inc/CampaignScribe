@@ -1,4 +1,5 @@
 """Headless smoke test: AppWindow constructs, all tabs build, tab order is correct."""
+
 from __future__ import annotations
 
 import tkinter as tk
@@ -24,11 +25,16 @@ def app(monkeypatch):
     # Avoid importing torch / probing GPU during construction.
     monkeypatch.setattr(
         "app.ui.app_window.check_gpu",
-        lambda: {"recommendation": "cpu_unavailable", "torch_version": None,
-                 "error": "stubbed in test", "smi_gpu_name": None},
+        lambda: {
+            "recommendation": "cpu_unavailable",
+            "torch_version": None,
+            "error": "stubbed in test",
+            "smi_gpu_name": None,
+        },
     )
     try:
         from app.ui.app_window import AppWindow
+
         win = AppWindow()
     except tk.TclError as e:
         pytest.skip(f"No display available for Tk: {e}")

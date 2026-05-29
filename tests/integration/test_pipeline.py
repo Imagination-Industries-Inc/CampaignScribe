@@ -1,4 +1,5 @@
 """Integration: identify -> format -> summarize -> consolidate with mocked LLM + diarization."""
+
 from __future__ import annotations
 
 from app.core import speaker_id, summarizer
@@ -42,10 +43,12 @@ def test_identify_falls_back_on_bad_llm_json(monkeypatch, fake_claude):
 
 
 def test_summarize_then_consolidate(fake_claude):
-    client = fake_claude([
-        "## Part 1\nThe party entered the crypt.",
-        "SESSION NAME: The Crypt\n\n## Recap\nAll survived.",
-    ])
+    client = fake_claude(
+        [
+            "## Part 1\nThe party entered the crypt.",
+            "SESSION NAME: The Crypt\n\n## Recap\nAll survived.",
+        ]
+    )
     transcript = "DM: You enter a crypt.\n\nMike: I draw my sword."
     part = summarizer.summarize_part(transcript, SPEAKERS_REF, "Summarize this.", "sk-x", 1)
     assert "crypt" in part.lower()
