@@ -97,11 +97,15 @@ class AppWindow(tk.Tk):
         ).pack(side="left")
 
         self.banner_label = banner_inner  # backwards-compatible attribute
-        self._refresh_banner()
 
         # ---- Notebook ----------------------------------------------------
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill="both", expand=True, padx=S_2, pady=S_2)
+
+        # Show/hide the API-key banner. Must run AFTER self.notebook exists:
+        # when no key is stored, _refresh_banner packs the banner with
+        # before=self.notebook, so the notebook must already be created.
+        self._refresh_banner()
 
         self.tab1 = Tab1Onboard(self.notebook, self)
         self.tab2 = Tab2Refine(self.notebook, self)
