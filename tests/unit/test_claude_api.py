@@ -1,4 +1,5 @@
 """Tests for app.core.claude_api.make_client: empty-key guard + timeout/retry config."""
+
 from __future__ import annotations
 
 import pytest
@@ -19,6 +20,7 @@ def test_make_client_configures_timeout_and_retries(monkeypatch):
             captured.update(kwargs)
 
     import anthropic
+
     monkeypatch.setattr(anthropic, "Anthropic", _FakeAnthropic)
 
     client = claude_api.make_client("sk-test")

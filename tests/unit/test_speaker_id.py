@@ -1,4 +1,5 @@
 """Tests for speaker_id._extract_json_object edge cases + format_segments_to_text."""
+
 from __future__ import annotations
 
 import pytest
@@ -11,7 +12,7 @@ def test_extract_plain_json_object():
 
 
 def test_extract_json_array():
-    assert speaker_id._extract_json_object('[1, 2, 3]') == [1, 2, 3]
+    assert speaker_id._extract_json_object("[1, 2, 3]") == [1, 2, 3]
 
 
 def test_extract_fenced_json():
