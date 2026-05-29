@@ -26,6 +26,7 @@ ignore_missing_imports = true
 warn_unused_ignores = false
 warn_return_any = false
 check_untyped_defs = false
+    # tests/ excluded for now (gradual typing); revisit once the suite is typed.
 exclude = ["build/", "dist/", "build_workspace/", "tests/"]
 
 [tool.pytest.ini_options]
