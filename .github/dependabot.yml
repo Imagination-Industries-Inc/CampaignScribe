@@ -12,14 +12,15 @@ updates:
     # (see the backlog item for periodic ML-stack evaluation). Only deps that
     # live exclusively in requirements.txt are ignored here; shared light deps
     # (anthropic, keyring, python-docx) stay watched because requirements-dev.txt
-    # pins them and CI validates them.
+    # declares them (with >= floors) and CI installs + validates them.
+    # Names use PEP 503 canonical form; Dependabot normalizes both sides anyway.
     ignore:
       - dependency-name: "torch"
       - dependency-name: "torchaudio"
       - dependency-name: "whisperx"
-      - dependency-name: "pyannote.audio"
+      - dependency-name: "pyannote-audio"
       - dependency-name: "transformers"
-      - dependency-name: "huggingface_hub"
+      - dependency-name: "huggingface-hub"
       - dependency-name: "lightning"
       - dependency-name: "pytorch-lightning"
       - dependency-name: "faster-whisper"
