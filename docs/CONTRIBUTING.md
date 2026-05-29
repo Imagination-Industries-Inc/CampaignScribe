@@ -42,7 +42,7 @@ Both checks are required; a PR cannot be merged until both pass.
 
 ### Security Scanning
 
-**CodeQL** runs on every PR and scans for security vulnerabilities.
+**CodeQL** code scanning is enabled at the repository level via GitHub's default setup (configured in repo Settings, not a workflow file here).
 
 ### AI Code Reviewers
 
