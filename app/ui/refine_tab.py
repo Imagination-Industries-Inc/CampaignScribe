@@ -15,7 +15,7 @@ from app.ui.common import ScrollableFrame
 from app.ui.theme import BTN_ACCENT, LBL_DIM, LBL_EYEBROW, LBL_HEADER
 
 
-class Tab2Refine(ttk.Frame):
+class RefineTab(ttk.Frame):
     def __init__(self, master, app_window):
         super().__init__(master)
         self.app = app_window

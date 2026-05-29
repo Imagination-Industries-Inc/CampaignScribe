@@ -10,14 +10,13 @@ from tkinter import ttk
 
 from app import __version__, config
 from app.core.transcriber import check_gpu
+from app.ui.build_profile_tab import BuildProfileTab
 from app.ui.common import open_path_native, reveal_in_folder
+from app.ui.discover_tab import DiscoverTab
+from app.ui.history_tab import HistoryTab
+from app.ui.refine_tab import RefineTab
 from app.ui.settings_dialog import SettingsDialog
-from app.ui.tab1_onboard import Tab1Onboard
-from app.ui.tab2_refine import Tab2Refine
-from app.ui.tab3_manage import Tab3Manage
-from app.ui.tab4_history import Tab4History
-from app.ui.tab5_transcribe import Tab5Transcribe
-from app.ui.tab6_summarize import Tab6Summarize
+from app.ui.summarize_tab import SummarizeTab
 from app.ui.theme import (
     BTN_GHOST,
     LBL_EYEBROW,
@@ -31,6 +30,7 @@ from app.ui.theme import (
     apply_theme,
     color,
 )
+from app.ui.transcribe_tab import TranscribeTab
 
 
 class AppWindow(tk.Tk):
@@ -107,21 +107,21 @@ class AppWindow(tk.Tk):
         # before=self.notebook, so the notebook must already be created.
         self._refresh_banner()
 
-        self.tab1 = Tab1Onboard(self.notebook, self)
-        self.tab2 = Tab2Refine(self.notebook, self)
-        self.tab3 = Tab3Manage(self.notebook, self)
-        self.tab4 = Tab4History(self.notebook, self)
-        self.tab5 = Tab5Transcribe(self.notebook, self)
-        self.tab6 = Tab6Summarize(self.notebook, self)
+        self.discover_tab = DiscoverTab(self.notebook, self)
+        self.refine_tab = RefineTab(self.notebook, self)
+        self.build_profile_tab = BuildProfileTab(self.notebook, self)
+        self.history_tab = HistoryTab(self.notebook, self)
+        self.transcribe_tab = TranscribeTab(self.notebook, self)
+        self.summarize_tab = SummarizeTab(self.notebook, self)
 
         # (widget, label, icon-name) in display order
         self._tab_specs = [
-            (self.tab1, "1. Discover", "discover"),
-            (self.tab3, "2. Build Profile", "profile"),
-            (self.tab5, "3. Transcribe", "transcribe"),
-            (self.tab6, "4. Summarize", "summarize"),
-            (self.tab2, "5. Refine", "refine"),
-            (self.tab4, "6. History", "history"),
+            (self.discover_tab, "1. Discover", "discover"),
+            (self.build_profile_tab, "2. Build Profile", "profile"),
+            (self.transcribe_tab, "3. Transcribe", "transcribe"),
+            (self.summarize_tab, "4. Summarize", "summarize"),
+            (self.refine_tab, "5. Refine", "refine"),
+            (self.history_tab, "6. History", "history"),
         ]
         self._tab_icons = {}  # icon-name -> {"idle": PhotoImage, "active": PhotoImage}
         for widget, label, icon in self._tab_specs:
@@ -263,7 +263,14 @@ class AppWindow(tk.Tk):
         dlg = SettingsDialog(self)
         self.wait_window(dlg)
         self._refresh_banner()
-        for tab in (self.tab1, self.tab2, self.tab3, self.tab4, self.tab5, self.tab6):
+        for tab in (
+            self.discover_tab,
+            self.refine_tab,
+            self.build_profile_tab,
+            self.history_tab,
+            self.transcribe_tab,
+            self.summarize_tab,
+        ):
             if hasattr(tab, "on_settings_changed"):
                 tab.on_settings_changed()
 
@@ -325,8 +332,8 @@ class AppWindow(tk.Tk):
             tab._add_files()
         else:
             self.jump_to_tab(0)
-            if hasattr(self.tab1, "_browse_audio"):
-                self.tab1._browse_audio()
+            if hasattr(self.discover_tab, "_browse_audio"):
+                self.discover_tab._browse_audio()
 
     def _run_current_tab(self):
         """F5: invoke the current tab's primary action button if enabled."""

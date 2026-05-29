@@ -94,7 +94,7 @@ class SpeakerEditor(ttk.LabelFrame):
         }
 
 
-class Tab3Manage(ttk.Frame):
+class BuildProfileTab(ttk.Frame):
     def __init__(self, master, app_window):
         super().__init__(master)
         self.app = app_window

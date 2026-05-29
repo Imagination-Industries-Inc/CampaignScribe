@@ -27,7 +27,7 @@ STATE_ICONS = {
 }
 
 
-class Tab5Transcribe(ttk.Frame):
+class TranscribeTab(ttk.Frame):
     def __init__(self, master, app_window):
         super().__init__(master)
         self.app = app_window

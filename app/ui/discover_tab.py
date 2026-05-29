@@ -14,7 +14,7 @@ from app.ui.common import make_readonly, short_path
 from app.ui.theme import BTN_ACCENT, LBL_DIM, LBL_HEADER, color
 
 
-class Tab1Onboard(ttk.Frame):
+class DiscoverTab(ttk.Frame):
     def __init__(self, master, app_window):
         super().__init__(master)
         self.app = app_window

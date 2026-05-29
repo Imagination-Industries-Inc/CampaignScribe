@@ -52,7 +52,7 @@ class PromptDialog(tk.Toplevel):
         self.destroy()
 
 
-class Tab6Summarize(ttk.Frame):
+class SummarizeTab(ttk.Frame):
     def __init__(self, master, app_window):
         super().__init__(master)
         self.app = app_window

@@ -17,7 +17,7 @@ STATUS_ICON = {
 }
 
 
-class Tab4History(ttk.Frame):
+class HistoryTab(ttk.Frame):
     def __init__(self, master, app_window):
         super().__init__(master)
         self.app = app_window
