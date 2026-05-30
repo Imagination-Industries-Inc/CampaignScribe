@@ -40,17 +40,27 @@ def app(monkeypatch):
 
 
 def test_privacy_dialog_builds_and_shows_statement(app):
-    from tkinter import ttk
-
     from app.ui.app_window import PrivacyDialog
 
-    dlg = PrivacyDialog(app)
-    app.update_idletasks()
+    dlg = None
     try:
-        frames = [w for w in dlg.winfo_children() if isinstance(w, (tk.Frame, ttk.Frame))]
-        assert frames  # dialog built a body/links frame
+        dlg = PrivacyDialog(app)
+        app.update_idletasks()
+
+        widgets: list = []
+
+        def _collect(w):
+            widgets.append(w)
+            for child in w.winfo_children():
+                _collect(child)
+
+        _collect(dlg)
+        text_widgets = [w for w in widgets if isinstance(w, tk.Text)]
+        assert text_widgets, "PrivacyDialog should contain a Text widget"
+        assert "Anthropic Claude API" in text_widgets[0].get("1.0", "end")
     finally:
-        dlg.destroy()
+        if dlg is not None:
+            dlg.destroy()
 
 
 def test_api_tabs_have_privacy_notes(app):
