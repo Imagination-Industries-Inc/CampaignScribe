@@ -8,7 +8,7 @@ CampaignScribe is built to collect as little as possible and to be honest and ex
 - **Your Anthropic API key and HuggingFace token** — stored in Windows Credential Manager; sent only to the respective service to authenticate.
 
 ## Sent to the Anthropic Claude API (and why)
-- **Short transcript snippets** (speaker samples) — to identify who is speaking (Discover, Transcribe, Refine).
+- **Transcript excerpts** (speaker samples) — to identify who is speaking (Discover, Transcribe, Refine).
 - **Full transcript text** — to write session summaries (Summarize).
 - **Your campaign/speaker context** from `speakers.json` — as context for the above.
 
@@ -20,8 +20,16 @@ Anthropic states that API inputs are not used to train their models (commercial 
 ## Sent to GitHub
 - **Update checks** contact GitHub to see whether a newer version exists (and to download it). No personal content.
 
+*Note: automatic update checks are planned and not active in the current release.*
+
 ## Optional crash reports (off by default)
 - Only if you opt in. Crash reports are scrubbed of transcripts, keys, and audio before sending.
 
+*Note: opt-in crash reporting is planned and not active in the current release.*
+
 ## What CampaignScribe does NOT do
 - No analytics, no tracking, no telemetry by default, and no servers of our own. We collect nothing about you.
+
+---
+
+Questions or concerns? Open an issue or discussion at https://github.com/Imagination-Industries-Inc/CampaignScribe
