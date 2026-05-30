@@ -5,7 +5,7 @@ from PyInstaller.utils.hooks import copy_metadata
 
 datas = [('ffmpeg\\ffmpeg.exe', 'ffmpeg'), ('assets\\icon.ico', 'assets'), ('PRIVACY.md', '.')]
 binaries = []
-hiddenimports = ['anthropic', 'keyring.backends.Windows', 'docx', 'ffmpeg', 'app', 'app.ui.app_window']
+hiddenimports = ['anthropic', 'keyring.backends.Windows', 'docx', 'ffmpeg', 'app', 'app.ui.app_window', 'darkdetect']
 datas += collect_data_files('anthropic')
 datas += copy_metadata('torchcodec')
 datas += copy_metadata('transformers')
