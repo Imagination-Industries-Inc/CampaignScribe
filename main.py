@@ -85,7 +85,7 @@ def main() -> int:
         while True:
             win = AppWindow()
             win.mainloop()
-            if not getattr(win, "_rebuild_requested", False):
+            if not win._rebuild_requested:
                 break
         return 0
     except Exception:
