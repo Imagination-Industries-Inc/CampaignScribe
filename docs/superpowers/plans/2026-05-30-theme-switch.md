@@ -14,7 +14,7 @@
 
 ## Scope & ground rules
 - One of three independent Phase 1 plans; produces working, testable software on its own.
-- **Project rules:** plain commits (NO AI attribution); no "MeetingScribe"; `CREATE_NO_WINDOW` on any subprocess (none added); ruff-clean; tests green; GPU-preferred unaffected.
+- **Project rules:** plain commits (NO AI attribution); no predecessor-product name references; `CREATE_NO_WINDOW` on any subprocess (none added); ruff-clean; tests green; GPU-preferred unaffected.
 - **Out of scope (deferred):** the optional `system`-mode live listener that auto-rebuilds when the OS theme changes mid-session (spec "phase 2"). We resolve `system` on launch/rebuild only.
 
 ## Existing-code facts (verified)
