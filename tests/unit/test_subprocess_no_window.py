@@ -64,3 +64,38 @@ def test_reveal_in_folder_windows_explorer_passes_creationflags(monkeypatch):
 
     common.reveal_in_folder(r"C:\sessions\file.txt")
     assert captured.get("creationflags") == CREATE_NO_WINDOW
+
+
+def test_open_path_native_macos_passes_creationflags(monkeypatch):
+    import app.ui.common as common
+
+    captured: dict = {}
+    monkeypatch.setattr(common.sys, "platform", "darwin")  # force the `open` branch
+    monkeypatch.setattr(common.subprocess, "Popen", _fake_popen_recorder(captured))
+
+    common.open_path_native("/Users/x/file.wav")
+    assert captured.get("creationflags") == CREATE_NO_WINDOW
+
+
+def test_reveal_in_folder_macos_passes_creationflags(monkeypatch):
+    import app.ui.common as common
+
+    captured: dict = {}
+    monkeypatch.setattr(common.sys, "platform", "darwin")  # force the `open -R` branch
+    monkeypatch.setattr(common.subprocess, "Popen", _fake_popen_recorder(captured))
+
+    common.reveal_in_folder("/Users/x/file.txt")
+    assert captured.get("creationflags") == CREATE_NO_WINDOW
+
+
+def test_real_subprocess_accepts_creationflags():
+    """Cross-platform safety: a REAL subprocess call must accept
+    creationflags=CREATE_NO_WINDOW (the real flag on Windows, 0 elsewhere). This
+    catches a TypeError that the monkeypatched tests above cannot."""
+    import sys
+
+    out = subprocess.check_output(
+        [sys.executable, "-c", "print('cs-ok')"],
+        creationflags=CREATE_NO_WINDOW,
+    )
+    assert out.decode().strip() == "cs-ok"
