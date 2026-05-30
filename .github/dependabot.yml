@@ -26,6 +26,7 @@ updates:
       - dependency-name: "faster-whisper"
       - dependency-name: "pyinstaller"
       - dependency-name: "ffmpeg-python"
+      - dependency-name: "darkdetect"
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
