@@ -75,6 +75,17 @@ class SettingsDialog(tk.Toplevel):
         ).grid(row=row, column=1, sticky="w", **pad)
         row += 1
 
+        ttk.Label(self, text="Theme:").grid(row=row, column=0, sticky="w", **pad)
+        self.theme_var = tk.StringVar(value=cfg.get("theme_mode", "dark").capitalize())
+        ttk.Combobox(
+            self,
+            textvariable=self.theme_var,
+            state="readonly",
+            width=20,
+            values=["Dark", "Light", "System"],
+        ).grid(row=row, column=1, sticky="w", **pad)
+        row += 1
+
         btn_frame = ttk.Frame(self)
         btn_frame.grid(row=row, column=0, columnspan=3, pady=12)
         ttk.Button(btn_frame, text="Save", command=self._save).pack(side="left", padx=6)
@@ -108,6 +119,7 @@ class SettingsDialog(tk.Toplevel):
             cfg["default_output_folder"] = self.out_var.get().strip()
             cfg["default_whisper_model"] = self.model_var.get()
             cfg["default_num_speakers"] = int(self.spk_var.get() or 5)
+            cfg["theme_mode"] = self.theme_var.get().lower()
             config.save_config(cfg)
         except Exception as e:
             messagebox.showerror("Settings", f"Could not save settings:\n{e}", parent=self)
