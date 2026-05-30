@@ -43,5 +43,5 @@ def load_privacy_text() -> str:
     """Return the full privacy statement, or a short embedded fallback."""
     try:
         return _privacy_md_path().read_text(encoding="utf-8")
-    except OSError:
+    except (OSError, ValueError):
         return _FALLBACK

@@ -23,9 +23,14 @@ def test_load_privacy_text_matches_repo_file():
 
 def test_load_privacy_text_falls_back_when_missing(monkeypatch, tmp_path):
     monkeypatch.setattr(privacy, "_privacy_md_path", lambda: tmp_path / "nope.md")
-    text = privacy.load_privacy_text()
-    assert "Anthropic" in text
-    assert text.strip()  # non-empty embedded fallback
+    assert privacy.load_privacy_text() == privacy._FALLBACK
+
+
+def test_load_privacy_text_falls_back_on_decode_error(monkeypatch, tmp_path):
+    bad = tmp_path / "bad.md"
+    bad.write_bytes(b"\xff\xfe\x00invalid utf-8 \xc3\x28")
+    monkeypatch.setattr(privacy, "_privacy_md_path", lambda: bad)
+    assert privacy.load_privacy_text() == privacy._FALLBACK
 
 
 def test_urls_are_https():
