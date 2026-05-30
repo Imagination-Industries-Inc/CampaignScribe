@@ -6,7 +6,7 @@ Updated to adopt Mike's DM Tools Design System via ``app.ui.theme``.
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
 from app import __version__, config
 from app.core import privacy
@@ -38,6 +38,7 @@ from app.ui.transcribe_tab import TranscribeTab
 class AppWindow(tk.Tk):
     def __init__(self):
         super().__init__()
+        self._rebuild_requested = False
         self.title(f"CampaignScribe v{__version__}")
 
         # 🎨 MDMT theme — must run BEFORE any widget is constructed.
@@ -262,6 +263,7 @@ class AppWindow(tk.Tk):
             self.banner.pack(side="top", fill="x", before=self.notebook)
 
     def open_settings(self):
+        old_mode = config.load_config().get("theme_mode", "dark")
         dlg = SettingsDialog(self)
         self.wait_window(dlg)
         self._refresh_banner()
@@ -275,6 +277,32 @@ class AppWindow(tk.Tk):
         ):
             if hasattr(tab, "on_settings_changed"):
                 tab.on_settings_changed()
+        new_mode = config.load_config().get("theme_mode", "dark")
+        if new_mode != old_mode:
+            self._handle_theme_change()
+
+    def _any_tab_busy(self) -> bool:
+        return any(getattr(widget, "_busy", False) for widget, _label, _icon in self._tab_specs)
+
+    def request_rebuild(self):
+        """Persist geometry, flag a rebuild, and close the window so the
+        entry-point relaunch loop constructs a fresh one (new theme applied)."""
+        self._save_window_geometry()
+        self._rebuild_requested = True
+        self.destroy()
+
+    def _handle_theme_change(self):
+        """Apply a theme_mode change by rebuilding — unless a job is running,
+        in which case defer to next launch (the new mode is already persisted)."""
+        if self._any_tab_busy():
+            messagebox.showinfo(
+                "Theme",
+                "A job is currently running. The new theme will be applied the "
+                "next time you launch CampaignScribe.",
+                parent=self,
+            )
+            return
+        self.request_rebuild()
 
     def jump_to_tab(self, index: int):
         self.notebook.select(index)
@@ -421,7 +449,7 @@ class AppWindow(tk.Tk):
                 except Exception:
                     pass
 
-    def _on_close(self):
+    def _save_window_geometry(self):
         try:
             cfg = config.load_config()
             cfg["window_width"] = self.winfo_width()
@@ -431,6 +459,9 @@ class AppWindow(tk.Tk):
             config.save_config(cfg)
         except Exception:
             pass
+
+    def _on_close(self):
+        self._save_window_geometry()
         self.destroy()
 
 
