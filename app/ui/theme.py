@@ -60,6 +60,50 @@ def set_theme_variant(variant: ThemeVariant) -> None:
     _active_variant = variant
 
 
+def _detect_system_variant() -> ThemeVariant:
+    """Best-effort OS appearance detection: darkdetect → Windows registry →
+    dark. Always returns a valid variant (never None)."""
+    # 1. darkdetect (cross-platform, tiny). Lazily imported so a missing
+    #    package never breaks non-system modes.
+    try:
+        import darkdetect
+
+        result = darkdetect.theme()  # "Dark" | "Light" | None
+        if result == "Light":
+            return "light"
+        if result == "Dark":
+            return "dark"
+    except Exception:
+        pass
+    # 2. Windows registry: AppsUseLightTheme (1 = light, 0 = dark).
+    try:
+        import winreg
+
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+        )
+        try:
+            value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+        finally:
+            winreg.CloseKey(key)
+        return "light" if value == 1 else "dark"
+    except Exception:
+        pass
+    # 3. Fallback: the app ships dark.
+    return "dark"
+
+
+def resolve_variant(mode: str) -> ThemeVariant:
+    """Map a theme_mode ('dark' | 'light' | 'system') to a concrete variant.
+    Unknown modes resolve to 'dark' (safe default)."""
+    if mode == "light":
+        return "light"
+    if mode == "system":
+        return _detect_system_variant()
+    return "dark"
+
+
 _PALETTES: dict[str, dict[str, str]] = {
     "dark": {
         # Surfaces
@@ -232,10 +276,14 @@ LF_RUNE_LABEL = "Rune.TLabelframe.Label"
 def apply_theme(root: tk.Tk) -> None:
     """Configure ttk styles, classic-Tk colors, fonts, and the window icon.
 
-    Call this once at the top of ``AppWindow.__init__``, *before* any
-    widget is constructed. Re-calling is safe but doesn't pick up variant
-    changes mid-flight; rebuild the window for that.
+    Reads the persisted ``theme_mode`` from config, resolves it to a concrete
+    palette variant, then configures everything. Call once at the top of
+    ``AppWindow.__init__`` before any widget is constructed. To switch at
+    runtime, persist a new ``theme_mode`` and rebuild the window.
     """
+    from app import config
+
+    set_theme_variant(resolve_variant(config.load_config().get("theme_mode", "dark")))
     _register_bundled_fonts(root)
     _configure_root_window(root)
     _configure_styles(root)

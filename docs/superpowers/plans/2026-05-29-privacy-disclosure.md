@@ -14,7 +14,7 @@
 
 ## Scope & ground rules
 - This is **one** of three independent Phase 1 plans. It produces working, testable software on its own.
-- **Project rules:** plain commits (NO `Co-Authored-By`/Claude attribution); no "MeetingScribe"; `CREATE_NO_WINDOW` on any subprocess (none added here); ruff-clean; tests green.
+- **Project rules:** plain commits (NO `Co-Authored-By`/Claude attribution); no predecessor-product name references; `CREATE_NO_WINDOW` on any subprocess (none added here); ruff-clean; tests green.
 - **Out of scope (deferred):** the crash-report opt-in itself (#2 / hub plan) — but `PRIVACY.md` includes the baseline "Optional crash reports (off by default)" wording now so the statement is complete; the hub plan will wire the actual toggle and must keep its consent text consistent with this file.
 
 ## File Structure

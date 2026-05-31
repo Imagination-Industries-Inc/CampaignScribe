@@ -15,6 +15,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "default_output_folder": "",
     "default_whisper_model": "large-v3",
     "default_num_speakers": 5,
+    "theme_mode": "dark",
     "last_speakers_json": "",
     "last_output_folder": "",
     "last_audio_dir": "",
