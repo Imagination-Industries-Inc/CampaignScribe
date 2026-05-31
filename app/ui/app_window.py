@@ -9,7 +9,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from app import __version__, config
-from app.core import privacy
+from app.core import library, privacy
 from app.core.transcriber import check_gpu
 from app.ui.build_profile_tab import BuildProfileTab
 from app.ui.campaigns_tab import CampaignsTab
@@ -178,6 +178,9 @@ class AppWindow(tk.Tk):
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
+        # Offer the one-time library migration after the window is shown.
+        self.after(300, self._maybe_offer_library_import)
+
     # ----------------------------------------------------------------------
     # Status bar
     # ----------------------------------------------------------------------
@@ -264,6 +267,40 @@ class AppWindow(tk.Tk):
         else:
             # Insert above notebook, below topbar
             self.banner.pack(side="top", fill="x", before=self.notebook)
+
+    def _maybe_offer_library_import(self):
+        """One-time migration: if the library is empty and the user has a
+        previously-used speakers.json on disk, offer to import it. Asked at
+        most once (guarded by config 'library_import_prompted')."""
+        import os
+
+        cfg = config.load_config()
+        if cfg.get("library_import_prompted"):
+            return
+        # Already using the library? Nothing to migrate; don't ask again.
+        if library.list_campaigns():
+            cfg["library_import_prompted"] = True
+            config.save_config(cfg)
+            return
+        last = cfg.get("last_speakers_json", "")
+        if not last or not os.path.exists(last):
+            return  # nothing to offer yet — leave the flag so a future run can ask
+        if messagebox.askyesno(
+            "Import to Campaign Library?",
+            "CampaignScribe now organizes speaker profiles into a Campaign "
+            "Library.\n\nImport your most recent speakers.json to get started?"
+            f"\n\n{last}",
+            parent=self,
+        ):
+            try:
+                library.import_file(last)
+                if hasattr(self, "campaigns_tab"):
+                    self.campaigns_tab.on_show()
+            except Exception as e:
+                messagebox.showerror("CampaignScribe", f"Could not import:\n{e}")
+        cfg = config.load_config()
+        cfg["library_import_prompted"] = True
+        config.save_config(cfg)
 
     def open_settings(self):
         old_mode = config.load_config().get("theme_mode", "dark")
