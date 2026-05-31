@@ -403,4 +403,4 @@ class BuildProfileTab(ttk.Frame):
             return
         self.app.notebook.select(self.app.transcribe_tab)
         if hasattr(self.app.transcribe_tab, "picker"):
-            self.app.transcribe_tab.picker.refresh()
+            self.app.transcribe_tab.picker.select_by_slug(slug)

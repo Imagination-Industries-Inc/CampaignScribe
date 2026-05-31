@@ -39,11 +39,12 @@ class CampaignPicker(ttk.Frame):
             self._slug_by_label[label] = r["slug"]
             labels.append(label)
         self.combo["values"] = labels
+        if self._file_path:
+            return  # preserve an explicit loose-file selection across refreshes
         if self.var.get() not in labels:
             last = config.load_config().get("last_campaign", "")
             match = next((lbl for lbl, slug in self._slug_by_label.items() if slug == last), None)
             self.var.set(match or (labels[0] if labels else ""))
-        self._file_path = None
 
     def _on_combo(self, _e=None):
         self._file_path = None
@@ -103,4 +104,18 @@ class CampaignPicker(ttk.Frame):
         self._file_path = None
         self.var.set(label)
         self._on_combo()  # persists last_campaign + fires on_change
+        return True
+
+    def select_file(self, path: str) -> bool:
+        """Programmatically select a loose speakers.json file (no dialog), e.g.
+        for a session reopen or a cross-tab handoff. Fires on_change. Returns
+        True if the file loads; on failure leaves state unchanged and returns False."""
+        try:
+            speakers_io.load_speakers_json(path)
+        except Exception:
+            return False
+        self._file_path = path
+        self.var.set(f"(file) {path}")
+        if self._on_change:
+            self._on_change()
         return True

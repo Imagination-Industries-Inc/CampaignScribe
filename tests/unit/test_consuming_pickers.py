@@ -97,3 +97,36 @@ def test_refine_on_show_seeds_speakers_doc(root):
     tab.on_show()
     assert tab.speakers_path == str(library.current_version_path(slug))
     assert tab.speakers_doc is not None  # seeded, not None
+
+
+def test_picker_refresh_preserves_file_selection(root, tmp_path):
+    import json
+
+    from app.data import db
+    from app.ui.campaign_picker import CampaignPicker
+
+    db.init_db()
+    library.create_campaign("Strahd")  # a campaign exists so refresh has a default
+    f = tmp_path / "loose.json"
+    f.write_text(json.dumps({"campaign": "Loose", "players": []}), encoding="utf-8")
+    picker = CampaignPicker(root)
+    root.update_idletasks()
+    assert picker.select_file(str(f)) is True
+    assert picker.selected_slug() is None
+    assert picker.selected_path() == str(f)
+    picker.refresh()  # must NOT drop the loose-file selection
+    assert picker.selected_slug() is None
+    assert picker.selected_path() == str(f)
+
+
+def test_picker_select_file_rejects_unreadable(root, tmp_path):
+    from app.data import db
+    from app.ui.campaign_picker import CampaignPicker
+
+    db.init_db()
+    picker = CampaignPicker(root)
+    root.update_idletasks()
+    bad = tmp_path / "nope.json"
+    bad.write_text("{ not json", encoding="utf-8")
+    assert picker.select_file(str(bad)) is False
+    assert picker.selected_path() is None  # state unchanged

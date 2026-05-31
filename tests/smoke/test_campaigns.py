@@ -87,3 +87,20 @@ def test_campaigns_tab_on_show_reflects_new_campaign(app):
     app.update_idletasks()
     # the campaign appears in the engine the tab reads from
     assert any(r["slug"] == slug for r in library.list_campaigns())
+
+
+def test_reopen_in_transcribe_keeps_session_speakers_path(app, monkeypatch, tmp_path):
+    import json
+
+    from app.ui import transcribe_tab as tt
+
+    loose = tmp_path / "session_speakers.json"
+    loose.write_text(json.dumps(DOC), encoding="utf-8")
+    monkeypatch.setattr(
+        tt.db,
+        "get_session",
+        lambda sid: {"speakers_json_path": str(loose), "source_audio_files": "[]"},
+    )
+    app.transcribe_tab.load_session(999)
+    app.transcribe_tab.on_show()  # simulates the tab becoming visible (where the clobber happened)
+    assert app.transcribe_tab.speakers_path == str(loose)

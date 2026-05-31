@@ -198,8 +198,8 @@ class TranscribeTab(ttk.Frame):
             files = []
         self._set_audio_files(files)
         spk = s.get("speakers_json_path")
-        if spk:
-            self.speakers_path = spk
+        if spk and not self.picker.select_file(spk):
+            self.speakers_path = spk  # fallback: file unreadable/missing
         self.session_id = sid
 
     def _set_audio_files(self, files: list[str]) -> None:
@@ -530,9 +530,12 @@ class TranscribeTab(ttk.Frame):
         refine_tab = self.app.refine_tab
         slug = self.picker.selected_slug()
         if slug and refine_tab.picker.select_by_slug(slug):
-            pass  # picker selection syncs refine.speakers_path + speakers_doc via on_change
+            pass  # campaign selection syncs refine.speakers_path + speakers_doc via on_change
+        elif self.speakers_path and refine_tab.picker.select_file(self.speakers_path):
+            pass  # loose file: picker file-mode syncs refine.speakers_path + speakers_doc,
+            # and selected_slug() now returns None so Refine "accept" saves in place
         elif self.speakers_path:
-            # loose file: set directly (picker can't represent an arbitrary file selection here)
+            # last resort (file unreadable): set directly
             refine_tab.speakers_path = self.speakers_path
             try:
                 refine_tab.speakers_doc = speakers_io.load_speakers_json(self.speakers_path)

@@ -191,8 +191,8 @@ class SummarizeTab(ttk.Frame):
             self.session_combo.current(self._session_index.index(sid))
         s = db.get_session(sid) or {}
         spk = s.get("speakers_json_path")
-        if spk:
-            self.speakers_path = spk
+        if spk and not self.picker.select_file(spk):
+            self.speakers_path = spk  # fallback: file unreadable/missing
         folder = s.get("transcripts_folder")
         if folder and os.path.isdir(folder):
             import glob
