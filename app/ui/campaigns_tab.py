@@ -182,7 +182,6 @@ class CampaignsTab(ttk.Frame):
             messagebox.showinfo("CampaignScribe", "Select a version first.")
             return
         library.set_current(self._selected_slug, vf)
-        self._show_detail(self._selected_slug)
         self._refresh_list()
 
     def _export(self):
@@ -206,7 +205,11 @@ class CampaignsTab(ttk.Frame):
         )
         if not dest:
             return
-        library.export_version(self._selected_slug, vf, dest)
+        try:
+            library.export_version(self._selected_slug, vf, dest)
+        except Exception as e:
+            messagebox.showerror("CampaignScribe", f"Export failed:\n{e}")
+            return
         config.set_last_dir("json", dest)
         messagebox.showinfo("CampaignScribe", f"Exported to {dest}")
 
