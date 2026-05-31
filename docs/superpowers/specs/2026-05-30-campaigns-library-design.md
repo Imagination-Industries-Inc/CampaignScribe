@@ -3,7 +3,7 @@
 - **Status:** Designed, not yet implemented
 - **Date:** 2026-05-30
 - **Source:** Brainstorm 2026-05-30 (new capability, not part of the original 14-spec roadmap)
-- **Repo:** `Imagination-Industries-Inc/CampaignScribe` (`H:\git\CampaignScribe`)
+- **Repo:** `Imagination-Industries-LLC/CampaignScribe` (`H:\git\CampaignScribe`)
 - **Owner intent:** Users shouldn't have to find/juggle multiple `speakers.json` files across campaigns or iterations. The app should organize and preserve them — while still letting users save a copy anywhere they want.
 
 ## Problem
