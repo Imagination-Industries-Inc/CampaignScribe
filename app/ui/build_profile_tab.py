@@ -349,4 +349,4 @@ class BuildProfileTab(ttk.Frame):
         transcribe_tab = self.app.transcribe_tab
         transcribe_tab.speakers_var.set(out_path)
         transcribe_tab.speakers_path = out_path
-        self.app.jump_to_tab(2)
+        self.app.notebook.select(self.app.transcribe_tab)

@@ -558,4 +558,4 @@ class TranscribeTab(ttk.Frame):
                 return
         refine_tab.suggestions = doc
         refine_tab._render_suggestions()
-        self.app.jump_to_tab(4)
+        self.app.notebook.select(self.app.refine_tab)

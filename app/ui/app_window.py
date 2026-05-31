@@ -12,6 +12,7 @@ from app import __version__, config
 from app.core import privacy
 from app.core.transcriber import check_gpu
 from app.ui.build_profile_tab import BuildProfileTab
+from app.ui.campaigns_tab import CampaignsTab
 from app.ui.common import make_readonly, open_path_native, open_url, reveal_in_folder
 from app.ui.discover_tab import DiscoverTab
 from app.ui.history_tab import HistoryTab
@@ -110,6 +111,7 @@ class AppWindow(tk.Tk):
         # before=self.notebook, so the notebook must already be created.
         self._refresh_banner()
 
+        self.campaigns_tab = CampaignsTab(self.notebook, self)
         self.discover_tab = DiscoverTab(self.notebook, self)
         self.refine_tab = RefineTab(self.notebook, self)
         self.build_profile_tab = BuildProfileTab(self.notebook, self)
@@ -119,12 +121,13 @@ class AppWindow(tk.Tk):
 
         # (widget, label, icon-name) in display order
         self._tab_specs = [
-            (self.discover_tab, "1. Discover", "discover"),
-            (self.build_profile_tab, "2. Build Profile", "profile"),
-            (self.transcribe_tab, "3. Transcribe", "transcribe"),
-            (self.summarize_tab, "4. Summarize", "summarize"),
-            (self.refine_tab, "5. Refine", "refine"),
-            (self.history_tab, "6. History", "history"),
+            (self.campaigns_tab, "1. Campaigns", "campaigns"),
+            (self.discover_tab, "2. Discover", "discover"),
+            (self.build_profile_tab, "3. Build Profile", "profile"),
+            (self.transcribe_tab, "4. Transcribe", "transcribe"),
+            (self.summarize_tab, "5. Summarize", "summarize"),
+            (self.refine_tab, "6. Refine", "refine"),
+            (self.history_tab, "7. History", "history"),
         ]
         self._tab_icons = {}  # icon-name -> {"idle": PhotoImage, "active": PhotoImage}
         for widget, label, icon in self._tab_specs:
@@ -268,6 +271,7 @@ class AppWindow(tk.Tk):
         self.wait_window(dlg)
         self._refresh_banner()
         for tab in (
+            self.campaigns_tab,
             self.discover_tab,
             self.refine_tab,
             self.build_profile_tab,
@@ -342,7 +346,7 @@ class AppWindow(tk.Tk):
         self.bind_all("<Control-O>", lambda _e: self._menu_open_audio())
         self.bind_all("<Control-comma>", lambda _e: self.open_settings())
         self.bind_all("<F5>", lambda _e: self._run_current_tab())
-        for i in range(1, 7):
+        for i in range(1, 8):
             self.bind_all(f"<Control-Key-{i}>", lambda _e, n=i - 1: self.jump_to_tab(n))
 
     def _current_tab(self):
@@ -363,7 +367,7 @@ class AppWindow(tk.Tk):
         elif hasattr(tab, "_add_files"):
             tab._add_files()
         else:
-            self.jump_to_tab(0)
+            self.notebook.select(self.discover_tab)
             if hasattr(self.discover_tab, "_browse_audio"):
                 self.discover_tab._browse_audio()
 
