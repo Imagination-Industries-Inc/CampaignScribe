@@ -11,12 +11,11 @@ from tkinter import messagebox, ttk
 from app import __version__, config
 from app.core import library, privacy
 from app.core.transcriber import check_gpu
-from app.ui.build_profile_tab import BuildProfileTab
-from app.ui.campaigns_tab import CampaignsTab
 from app.ui.common import make_readonly, open_path_native, open_url, reveal_in_folder
-from app.ui.discover_tab import DiscoverTab
-from app.ui.history_tab import HistoryTab
+from app.ui.edit_profile_window import EditProfileWindow
+from app.ui.home_tab import HomeTab
 from app.ui.refine_tab import RefineTab
+from app.ui.session_view import SessionView
 from app.ui.settings_dialog import SettingsDialog
 from app.ui.summarize_tab import SummarizeTab
 from app.ui.theme import (
@@ -111,23 +110,17 @@ class AppWindow(tk.Tk):
         # before=self.notebook, so the notebook must already be created.
         self._refresh_banner()
 
-        self.campaigns_tab = CampaignsTab(self.notebook, self)
-        self.discover_tab = DiscoverTab(self.notebook, self)
-        self.refine_tab = RefineTab(self.notebook, self)
-        self.build_profile_tab = BuildProfileTab(self.notebook, self)
-        self.history_tab = HistoryTab(self.notebook, self)
+        self.home_tab = HomeTab(self.notebook, self)
         self.transcribe_tab = TranscribeTab(self.notebook, self)
         self.summarize_tab = SummarizeTab(self.notebook, self)
+        self.refine_tab = RefineTab(self.notebook, self)
 
         # (widget, label, icon-name) in display order
         self._tab_specs = [
-            (self.campaigns_tab, "1. Campaigns", "campaigns"),
-            (self.discover_tab, "2. Discover", "discover"),
-            (self.build_profile_tab, "3. Build Profile", "profile"),
-            (self.transcribe_tab, "4. Transcribe", "transcribe"),
-            (self.summarize_tab, "5. Summarize", "summarize"),
-            (self.refine_tab, "6. Refine", "refine"),
-            (self.history_tab, "7. History", "history"),
+            (self.home_tab, "1. Home", "campaigns"),
+            (self.transcribe_tab, "2. Transcribe", "transcribe"),
+            (self.summarize_tab, "3. Summarize", "summarize"),
+            (self.refine_tab, "4. Refine", "refine"),
         ]
         self._tab_icons = {}  # icon-name -> {"idle": PhotoImage, "active": PhotoImage}
         for widget, label, icon in self._tab_specs:
@@ -297,9 +290,9 @@ class AppWindow(tk.Tk):
             except Exception as e:
                 messagebox.showerror("CampaignScribe", f"Could not import:\n{e}")
             else:
-                if hasattr(self, "campaigns_tab"):
+                if hasattr(self, "home_tab"):
                     try:
-                        self.campaigns_tab.on_show()
+                        self.home_tab.on_show()
                     except Exception:
                         pass  # a UI refresh failure must not block the migration
         # Re-load: the modal above ran the Tk event loop, so config may have
@@ -315,13 +308,10 @@ class AppWindow(tk.Tk):
         self.wait_window(dlg)
         self._refresh_banner()
         for tab in (
-            self.campaigns_tab,
-            self.discover_tab,
-            self.refine_tab,
-            self.build_profile_tab,
-            self.history_tab,
+            self.home_tab,
             self.transcribe_tab,
             self.summarize_tab,
+            self.refine_tab,
         ):
             if hasattr(tab, "on_settings_changed"):
                 tab.on_settings_changed()
@@ -357,6 +347,30 @@ class AppWindow(tk.Tk):
             )
             return
         self.request_rebuild()
+
+    def open_home(self):
+        self.notebook.select(self.home_tab)
+        if hasattr(self.home_tab, "on_show"):
+            self.home_tab.on_show()
+
+    def open_edit_profile(self, slug: str):
+        EditProfileWindow(self, self, slug)
+
+    def open_session(self, session_id: int):
+        SessionView(self, self, session_id)
+
+    def open_session_stage(self, session_id: int, stage: str):
+        from app.data import db
+
+        session = db.get_session(session_id)
+        tab = {
+            "transcribe": self.transcribe_tab,
+            "summarize": self.summarize_tab,
+            "refine": self.refine_tab,
+        }.get(stage, self.transcribe_tab)
+        if session is not None and hasattr(tab, "load_for_session"):
+            tab.load_for_session(session)
+        self.notebook.select(tab)
 
     def jump_to_tab(self, index: int):
         self.notebook.select(index)
@@ -396,7 +410,7 @@ class AppWindow(tk.Tk):
         self.bind_all("<Control-O>", lambda _e: self._menu_open_audio())
         self.bind_all("<Control-comma>", lambda _e: self.open_settings())
         self.bind_all("<F5>", lambda _e: self._run_current_tab())
-        for i in range(1, 8):
+        for i in range(1, len(self._tab_specs) + 1):
             self.bind_all(f"<Control-Key-{i}>", lambda _e, n=i - 1: self.jump_to_tab(n))
 
     def _current_tab(self):
@@ -410,16 +424,16 @@ class AppWindow(tk.Tk):
 
     def _menu_open_audio(self):
         """Ctrl+O / File→Open Audio: use the current tab's audio browse if it has
-        one, else jump to Discover and open its browse."""
+        one, else jump to Transcribe and open its file picker."""
         tab = self._current_tab()
         if hasattr(tab, "_browse_audio"):
             tab._browse_audio()
         elif hasattr(tab, "_add_files"):
             tab._add_files()
         else:
-            self.notebook.select(self.discover_tab)
-            if hasattr(self.discover_tab, "_browse_audio"):
-                self.discover_tab._browse_audio()
+            self.notebook.select(self.transcribe_tab)
+            if hasattr(self.transcribe_tab, "_add_files"):
+                self.transcribe_tab._add_files()
 
     def _run_current_tab(self):
         """F5: invoke the current tab's primary action button if enabled."""
@@ -445,7 +459,7 @@ class AppWindow(tk.Tk):
             "1. Anthropic API key — for speaker identification and summaries.\n"
             "2. HuggingFace token — for speaker diarization (also accept the "
             "pyannote model license on huggingface.co).\n\n"
-            "Then work left to right: Discover → Build Profile → Transcribe → "
+            "Then work left to right: Home → New session → Transcribe → "
             "Summarize. Refine improves your speaker profile from new audio.",
             parent=self,
         )

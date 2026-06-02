@@ -1,7 +1,7 @@
 """Shared SpeakerEditor widget — a single-speaker editable form block.
 
-Extracted from build_profile_tab.py so EditProfileWindow (and future callers)
-can import it without depending on the full Build Profile tab.
+Extracted into its own module so EditProfileWindow (and future callers)
+can import it independently.
 """
 
 from __future__ import annotations

@@ -325,8 +325,8 @@ class EditProfileWindow(tk.Toplevel):
 
     # ---------- discover from audio ----------
     def _discover_from_audio(self) -> None:
-        # Reuses the diarization + Claude profiling worker from the retired
-        # discover_tab: convert -> TranscriptionPipeline.transcribe_file ->
+        # Reuses the diarization + Claude profiling worker (formerly in the
+        # retired Discover tab): convert -> TranscriptionPipeline.transcribe_file ->
         # speaker_id.discover_speakers, then APPEND the returned profiles to the
         # editor list (no DB session is created here — this only seeds the roster).
         from app.core import audio, speaker_id, transcriber

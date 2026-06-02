@@ -55,9 +55,9 @@ def test_fresh_window_not_requesting_rebuild(app):
 
 def test_any_tab_busy_reflects_tab_state(app):
     assert app._any_tab_busy() is False
-    app.discover_tab._busy = True
+    app.transcribe_tab._busy = True
     assert app._any_tab_busy() is True
-    app.discover_tab._busy = False
+    app.transcribe_tab._busy = False
 
 
 def test_request_rebuild_sets_flag(app):

@@ -1,4 +1,4 @@
-"""Stage tabs operate on the active session — no CampaignPicker."""
+"""Stage tabs operate on the active session."""
 
 from __future__ import annotations
 
