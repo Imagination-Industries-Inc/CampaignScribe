@@ -347,6 +347,16 @@ class SummarizeTab(ttk.Frame):
         if path:
             self.out_var.set(path)
 
+    def _campaign_npcs(self) -> list[str]:
+        """NPC names from the active campaign's current profile (for summary context)."""
+        if not getattr(self, "active_slug", None):
+            return []
+        try:
+            doc = library.get_current_doc(self.active_slug)
+        except Exception:
+            return []
+        return [n["name"] for n in doc.get("npcs", []) if isinstance(n, dict) and n.get("name")]
+
     # ---------- run ----------
 
     def _set_busy(self, b: bool):
@@ -414,6 +424,7 @@ class SummarizeTab(ttk.Frame):
             return
 
         out = self.out_var.get().strip()
+        known_npcs = self._campaign_npcs()
         for i, tpath in enumerate(self.transcript_files, start=1):
             if self._cancel.is_set():
                 break
@@ -424,7 +435,12 @@ class SummarizeTab(ttk.Frame):
                 with open(tpath, encoding="utf-8") as f:
                     transcript = f.read()
                 summary = summarizer.summarize_part(
-                    transcript, speakers_doc, prompt_text, api_key, part_number=i
+                    transcript,
+                    speakers_doc,
+                    prompt_text,
+                    api_key,
+                    part_number=i,
+                    known_npcs=known_npcs,
                 )
                 self.part_summaries.append(summary)
                 out_path = os.path.join(out, f"summary_{i}.txt")
@@ -465,10 +481,12 @@ class SummarizeTab(ttk.Frame):
         self._set_busy(True)
         self._set_status("Consolidating with Claude…")
 
+        known_npcs = self._campaign_npcs()
+
         def worker():
             try:
                 result = summarizer.consolidate_summaries(
-                    self.part_summaries, speakers_doc, api_key
+                    self.part_summaries, speakers_doc, api_key, known_npcs=known_npcs
                 )
                 session_name = result.get("session_name") or "Session_Summary"
                 fname = summarizer.safe_filename(session_name) + ".docx"
