@@ -121,3 +121,47 @@ def test_loose_session_has_no_roster_but_constructs(root):
     view = SessionView(root, _app(), sid)
     root.update_idletasks()
     assert view.expected_speaker_count() == 0
+
+
+def test_promote_keeps_absent_roster_players(root):
+    db.init_db()
+    slug = _campaign_with_two_players()  # Mike + Jo
+    sid = db.create_session("Night 1", campaign_slug=slug)
+    from app.ui.session_view import SessionView
+
+    view = SessionView(root, _app(), sid)
+    root.update_idletasks()
+    try:
+        view.assign_cluster("SPEAKER_00", "Mike")  # only Mike showed up
+        view._save_to_profile()
+        doc = library.get_current_doc(slug)
+        names = {p["player_name"] for p in doc["players"]}
+        assert {"Mike", "Jo"} <= names  # Jo (absent) NOT dropped
+    finally:
+        view.destroy()
+
+
+def test_promote_does_not_add_guest_to_roster(root):
+    """Guest assignments are session-local (design decision D3) and must NOT be
+    promoted into the campaign roster.  The UI combobox is state='readonly' so
+    arbitrary new names can only enter via add_guest(); those guests should stay
+    session-local and not appear in the campaign's player list after promote."""
+    db.init_db()
+    slug = _campaign_with_two_players()  # Mike + Jo
+    sid = db.create_session("Night 1", campaign_slug=slug)
+    from app.ui.session_view import GUEST_CHOICE, SessionView
+
+    view = SessionView(root, _app(), sid)
+    root.update_idletasks()
+    try:
+        view.assign_cluster("SPEAKER_00", "Mike")
+        view.assign_cluster("SPEAKER_01", GUEST_CHOICE)  # one-night-only guest
+        view._save_to_profile()
+        doc = library.get_current_doc(slug)
+        names = {p["player_name"] for p in doc["players"]}
+        # Mike and Jo must survive; the guest cluster must NOT create a new player
+        assert {"Mike", "Jo"} <= names
+        assert not any(n == "" or n == GUEST_CHOICE for n in names)
+        assert len(names) == 2  # no extra entry from the guest cluster
+    finally:
+        view.destroy()

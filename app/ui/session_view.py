@@ -177,6 +177,9 @@ class SessionView(tk.Toplevel):
             self._review_vars[cluster_id].set(target)
 
     def _collect_assignments(self) -> dict[str, str]:
+        # Live combobox StringVar wins over programmatic assign_cluster values —
+        # if the user changes the combobox after assign_cluster was called, the
+        # GUI StringVar is the authoritative value.
         out = dict(self._assignments)
         for cid, var in getattr(self, "_review_vars", {}).items():
             if var.get():
@@ -187,6 +190,8 @@ class SessionView(tk.Toplevel):
         db.delete_speakers_for_session(self.session_id)
         for cid, target in self._collect_assignments().items():
             ignore = target == IGNORE_CHOICE
+            # GUEST and IGNORE assignments persist with empty display_name —
+            # these are session-local and excluded from promote (see D3).
             name = "" if target in (IGNORE_CHOICE, GUEST_CHOICE) else target
             db.add_speaker_profile(
                 self.session_id,
@@ -208,25 +213,72 @@ class SessionView(tk.Toplevel):
                 ),
             )
             return
-        rows = db.get_speakers_for_session(self.session_id)
+
+        # Load the current campaign doc; treat a missing doc as an empty one.
         try:
-            doc = library.get_current_doc(self.slug)
-            npcs = doc.get("npcs", [])
-            context = doc.get("context", "")
-            campaign = doc.get("campaign", "")
-        except Exception:
-            npcs, context, campaign = [], "", ""
-        speakers = [
-            {
-                "source_speaker_id": r["source_speaker_id"],
-                "display_name": r["display_name"],
-                "role": r.get("role", "Player"),
-                "include_in_tracking": r.get("include_in_tracking", 1),
-                "notes": r.get("notes", ""),
-            }
-            for r in rows
-            if r.get("display_name") or not r.get("include_in_tracking", 1)
-        ]
+            cur = library.get_current_doc(self.slug)
+        except FileNotFoundError:
+            session = db.get_session(self.session_id) or {}
+            cur = speakers_io.empty_speakers_doc(session.get("display_name", ""))
+
+        campaign = cur.get("campaign", "")
+        context = cur.get("context", "")
+        npcs = cur.get("npcs", [])
+
+        # Promote folds session assignments into the existing roster; never drops
+        # absent players; guests stay session-local (D3).
+        #
+        # Step 1 — seed from the EXISTING roster so nobody is silently dropped.
+        speakers: list[dict] = []
+        for p in cur.get("players", []):
+            speakers.append(
+                {
+                    "display_name": p.get("player_name", ""),
+                    "role": p.get("role", "Player"),
+                    "character_name": p.get("character_name", ""),
+                    "character_class": p.get("character_class", ""),
+                    "notes": p.get("notes", ""),
+                    "speech_patterns": p.get("speech_patterns", []),
+                    "source_speaker_id": p.get("source_speaker_id", ""),
+                    "include_in_tracking": 1,
+                }
+            )
+        for n in cur.get("known_non_players", []):
+            speakers.append(
+                {
+                    "display_name": n.get("name", ""),
+                    "role": "Non-Player",
+                    "notes": n.get("notes", ""),
+                    "speech_patterns": n.get("speech_patterns", []),
+                    "source_speaker_id": n.get("source_speaker_id", ""),
+                    "include_in_tracking": 0 if n.get("ignore", True) else 1,
+                }
+            )
+
+        # Step 2 — fold in this session's assignments without dropping anyone.
+        # GUEST and IGNORE targets have empty display_name in the DB; skip them.
+        existing_names = {s["display_name"].casefold() for s in speakers if s["display_name"]}
+        rows = db.get_speakers_for_session(self.session_id)
+        for r in rows:
+            target = r.get("display_name", "")
+            if not target:
+                # Empty display_name means GUEST or IGNORE — session-local, not promoted.
+                continue
+            if target.casefold() not in existing_names:
+                speakers.append(
+                    {
+                        "display_name": target,
+                        "role": r.get("role", "Player"),
+                        "character_name": "",
+                        "character_class": "",
+                        "notes": r.get("notes", ""),
+                        "speech_patterns": [],
+                        "source_speaker_id": r.get("source_speaker_id", ""),
+                        "include_in_tracking": r.get("include_in_tracking", 1),
+                    }
+                )
+                existing_names.add(target.casefold())
+
         new_doc = speakers_io.profiles_to_speakers_doc(campaign, context, speakers, npcs=npcs)
         library.add_version(self.slug, new_doc, label="from session")
         self.after(
