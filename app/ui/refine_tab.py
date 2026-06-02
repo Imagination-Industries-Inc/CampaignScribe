@@ -185,7 +185,9 @@ class RefineTab(ttk.Frame):
         if self._busy:
             return
         if not self.speakers_path or not self.speakers_doc:
-            messagebox.showerror("CampaignScribe", "Pick a speakers.json first.")
+            messagebox.showerror(
+                "CampaignScribe", "No speaker profile loaded — open a session from Home first."
+            )
             return
         if not self.audio_files:
             messagebox.showerror("CampaignScribe", "Add at least one audio file.")
@@ -262,7 +264,9 @@ class RefineTab(ttk.Frame):
         if not path:
             return
         if not self.speakers_path or not self.speakers_doc:
-            messagebox.showerror("CampaignScribe", "Pick a speakers.json first.")
+            messagebox.showerror(
+                "CampaignScribe", "No speaker profile loaded — open a session from Home first."
+            )
             return
         try:
             with open(path, encoding="utf-8") as f:

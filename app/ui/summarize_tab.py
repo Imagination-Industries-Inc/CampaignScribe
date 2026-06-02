@@ -198,6 +198,7 @@ class SummarizeTab(ttk.Frame):
         if sid in self._session_index:
             self.session_combo.current(self._session_index.index(sid))
         s = db.get_session(sid) or {}
+        self.active_slug = s.get("campaign_slug")
         self.speakers_path = self._resolve_speakers_path(s)
         folder = s.get("transcripts_folder")
         if folder and os.path.isdir(folder):
@@ -368,7 +369,9 @@ class SummarizeTab(ttk.Frame):
         if self._busy:
             return
         if not self.speakers_path:
-            messagebox.showerror("CampaignScribe", "Pick a speakers.json first.")
+            messagebox.showerror(
+                "CampaignScribe", "No speaker profile loaded — open a session from Home first."
+            )
             return
         if not self.transcript_files:
             messagebox.showerror("CampaignScribe", "Add at least one transcript file.")

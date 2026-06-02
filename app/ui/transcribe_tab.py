@@ -201,6 +201,7 @@ class TranscribeTab(ttk.Frame):
         if sid in self._session_index:
             self.session_combo.current(self._session_index.index(sid))
         s = db.get_session(sid) or {}
+        self.active_slug = s.get("campaign_slug")
         try:
             files = json.loads(s.get("source_audio_files") or "[]")
         except Exception:
@@ -323,7 +324,9 @@ class TranscribeTab(ttk.Frame):
         if self._busy:
             return
         if not self.speakers_path:
-            messagebox.showerror("CampaignScribe", "Pick a speakers.json first.")
+            messagebox.showerror(
+                "CampaignScribe", "No speaker profile loaded — open a session from Home first."
+            )
             return
         if not self.audio_files:
             messagebox.showerror("CampaignScribe", "Add at least one audio file.")
@@ -443,7 +446,7 @@ class TranscribeTab(ttk.Frame):
                     except OSError:
                         pass
 
-        # Persist detected speaker clusters so SessionView 'Review speakers' has real data
+        # persist clusters even on partial/cancelled runs — partial speaker data still helps Review
         if all_segments and self.session_id:
             try:
                 self._persist_detected_speakers(self.session_id, all_segments)
@@ -559,6 +562,7 @@ class TranscribeTab(ttk.Frame):
             return
         # Push into Refine tab
         refine_tab = self.app.refine_tab
+        refine_tab.active_slug = self.active_slug
         refine_tab.speakers_path = self.speakers_path
         try:
             refine_tab.speakers_doc = speakers_io.load_speakers_json(self.speakers_path)

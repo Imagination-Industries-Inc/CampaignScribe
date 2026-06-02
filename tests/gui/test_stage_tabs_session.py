@@ -66,3 +66,43 @@ def test_loose_session_falls_back_to_stored_speakers_path(root, tmp_path):
 def test_campaign_picker_module_removed():
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module("app.ui.campaign_picker")
+
+
+def test_load_session_sets_active_slug(root):
+    db.init_db()
+    slug = library.create_campaign("Strahd")
+    library.add_version(slug, speakers_io.empty_speakers_doc("Strahd"))
+    sid = db.create_session("Night 1", campaign_slug=slug)
+    from app.ui.transcribe_tab import TranscribeTab
+
+    tab = TranscribeTab(root, types.SimpleNamespace(notebook=None))
+    root.update_idletasks()
+    tab.load_session(sid)
+    assert tab.active_slug == slug
+
+
+def test_send_to_refine_forwards_active_slug(root, tmp_path):
+    import json
+
+    db.init_db()
+    slug = library.create_campaign("Strahd")
+    library.add_version(slug, speakers_io.empty_speakers_doc("Strahd"))
+    sid = db.create_session("Night 1", campaign_slug=slug)
+    from app.ui.refine_tab import RefineTab
+    from app.ui.transcribe_tab import TranscribeTab
+
+    refine = RefineTab(root, types.SimpleNamespace(notebook=None))
+    notebook_mock = types.SimpleNamespace(select=lambda _w: None)
+    app = types.SimpleNamespace(notebook=notebook_mock, refine_tab=refine)
+    tab = TranscribeTab(root, app)
+    root.update_idletasks()
+    tab.load_for_session(db.get_session(sid))
+
+    # Build a minimal speakers_improvements file so _send_to_refine doesn't early-return
+    imp_path = str(tmp_path / "speakers_improvements_test.json")
+    with open(imp_path, "w", encoding="utf-8") as fh:
+        json.dump({"improvements": [], "new_speakers": [], "suggested_ignores": []}, fh)
+    tab.results = [{"path": imp_path}]
+
+    tab._send_to_refine()
+    assert refine.active_slug == slug
