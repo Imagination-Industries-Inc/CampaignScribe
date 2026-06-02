@@ -129,7 +129,8 @@ def test_tracked_non_player_loads_into_roster_not_ignored(root):
     db.init_db()
     slug = library.create_campaign("Strahd")
     doc = speakers_io.profiles_to_speakers_doc(
-        "Strahd", "",
+        "Strahd",
+        "",
         [
             {"display_name": "Mike", "role": "Player", "include_in_tracking": 1},
             {"display_name": "Narrator", "role": "Non-Player", "include_in_tracking": 1},
@@ -139,6 +140,7 @@ def test_tracked_non_player_loads_into_roster_not_ignored(root):
     )
     library.add_version(slug, doc)
     from app.ui.edit_profile_window import EditProfileWindow
+
     win = EditProfileWindow(root, _app(), slug)
     root.update_idletasks()
     try:

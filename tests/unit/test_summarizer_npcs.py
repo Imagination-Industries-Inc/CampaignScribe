@@ -36,8 +36,12 @@ def test_summarize_part_without_npcs_is_unchanged(fake_claude):
 
     client_b = fake_claude(["s"])
     summarizer.summarize_part(
-        "T", {"campaign": "C", "context": "", "players": []}, "P", "sk",
-        part_number=1, known_npcs=[],
+        "T",
+        {"campaign": "C", "context": "", "players": []},
+        "P",
+        "sk",
+        part_number=1,
+        known_npcs=[],
     )
     assert _prompt_of(client_b) == base_prompt  # empty list == None == unchanged
 
