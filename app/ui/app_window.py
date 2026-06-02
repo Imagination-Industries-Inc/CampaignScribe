@@ -35,6 +35,23 @@ from app.ui.theme import (
 from app.ui.transcribe_tab import TranscribeTab
 
 
+def backlink_sessions_to_campaigns() -> int:
+    """Non-destructive: link null-slug sessions to a same-named library campaign
+    (case-insensitive exact name match). Returns the count linked."""
+    from app.core import library
+    from app.data import db
+
+    by_name = {c["display_name"].strip().lower(): c["slug"] for c in library.list_campaigns()}
+    linked = 0
+    for s in db.list_sessions(campaign_slug=db.UNCATEGORIZED):
+        name = (s.get("campaign_name") or "").strip().lower()
+        slug = by_name.get(name)
+        if slug:
+            db.update_session(s["id"], campaign_slug=slug)
+            linked += 1
+    return linked
+
+
 class AppWindow(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -264,8 +281,24 @@ class AppWindow(tk.Tk):
     def _maybe_offer_library_import(self):
         """One-time migration: if the library is empty and the user has a
         previously-used speakers.json on disk, offer to import it. Asked at
-        most once (guarded by config 'library_import_prompted')."""
+        most once (guarded by config 'library_import_prompted').
+
+        Also runs the one-time back-link migration (guarded by
+        'sessions_backlinked') that links existing null-slug sessions to a
+        same-named library campaign.  Both hooks are independent.
+        """
         import os
+
+        # One-time back-link: link null-slug sessions to matching campaigns.
+        cfg = config.load_config()
+        if not cfg.get("sessions_backlinked"):
+            try:
+                backlink_sessions_to_campaigns()
+            except Exception:
+                pass
+            cfg = config.load_config()
+            cfg["sessions_backlinked"] = True
+            config.save_config(cfg)
 
         cfg = config.load_config()
         if cfg.get("library_import_prompted"):
