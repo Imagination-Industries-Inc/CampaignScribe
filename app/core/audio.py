@@ -26,17 +26,26 @@ def get_ffmpeg_path() -> str:
     return "ffmpeg"  # fall back to PATH
 
 
-def convert_to_wav(input_path: str, target_sr: int = 16000) -> str:
-    """Convert any audio file to mono 16kHz WAV. Returns path to a temp WAV file."""
+def convert_to_wav(
+    input_path: str, target_sr: int = 16000, max_seconds: float | None = None
+) -> str:
+    """Convert any audio file to mono 16kHz WAV. Returns path to a temp WAV file.
+
+    If max_seconds is set, only the first max_seconds are converted (for fast speaker
+    discovery on a sample; full transcription passes max_seconds=None).
+    """
     import ffmpeg
 
     in_path = str(Path(input_path).resolve())
     fd, temp_wav = tempfile.mkstemp(suffix=".wav", prefix="campaignscribe_")
     os.close(fd)
     try:
+        out_kwargs: dict = dict(ar=target_sr, ac=1, format="wav", loglevel="error")
+        if max_seconds and max_seconds > 0:
+            out_kwargs["t"] = max_seconds
         (
             ffmpeg.input(in_path)
-            .output(temp_wav, ar=target_sr, ac=1, format="wav", loglevel="error")
+            .output(temp_wav, **out_kwargs)
             .overwrite_output()
             .run(quiet=True, cmd=get_ffmpeg_path())
         )

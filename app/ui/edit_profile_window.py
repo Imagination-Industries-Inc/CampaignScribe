@@ -348,12 +348,18 @@ class EditProfileWindow(tk.Toplevel):
             )
             return
         config.set_last_dir("audio", path)
-        self.npc_var.set("Discovering speakers from audio…")
+        sample_min = int(config.load_config().get("discover_sample_minutes", 10))
+        max_seconds = sample_min * 60 if sample_min and sample_min > 0 else None
+        self.npc_var.set(
+            f"Discovering speakers from the first {sample_min} min…"
+            if max_seconds
+            else "Discovering speakers from audio…"
+        )
 
         def worker() -> None:
             wav = None
             try:
-                wav = audio.convert_to_wav(path)
+                wav = audio.convert_to_wav(path, max_seconds=max_seconds)
                 pipeline = transcriber.TranscriptionPipeline(
                     model_size=config.load_config().get("default_whisper_model", "small"),
                     hf_token=hf,

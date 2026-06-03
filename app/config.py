@@ -27,6 +27,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "window_height": 760,
     "window_x": -1,
     "window_y": -1,
+    "discover_sample_minutes": 10,
 }
 
 
