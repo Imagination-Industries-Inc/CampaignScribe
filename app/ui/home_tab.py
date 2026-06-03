@@ -44,15 +44,17 @@ class HomeTab(ttk.Frame):
         self.search_var.trace_add("write", lambda *_: self._refresh_campaigns())
         ttk.Entry(left, textvariable=self.search_var, width=28).pack(fill="x")
         ttk.Label(left, text="Campaign", style=LBL_DIM).pack(anchor="w", pady=(S_2, 0))
-        self.campaign_list = tk.Listbox(left, width=30, height=18, exportselection=False)
+        # Anchor the action buttons to the bottom FIRST (packed bottom-up) so they
+        # stay visible even on a short window; the list then fills the space above.
+        ttk.Button(left, text="Import existing .json…", style=BTN_GHOST, command=self._import).pack(
+            side="bottom", fill="x", pady=(S_2, 0)
+        )
+        ttk.Button(left, text="＋ New campaign…", style=BTN_GHOST, command=self._new_campaign).pack(
+            side="bottom", fill="x", pady=(S_2, 0)
+        )
+        self.campaign_list = tk.Listbox(left, width=30, height=12, exportselection=False)
         self.campaign_list.pack(fill="both", expand=True)
         self.campaign_list.bind("<<ListboxSelect>>", self._on_campaign_select)
-        ttk.Button(left, text="＋ New campaign…", style=BTN_GHOST, command=self._new_campaign).pack(
-            fill="x", pady=(S_2, 0)
-        )
-        ttk.Button(left, text="Import existing .json…", style=BTN_GHOST, command=self._import).pack(
-            fill="x", pady=(S_2, 0)
-        )
 
         # ---- Right: detail ----
         right = ttk.Frame(self)
