@@ -11,7 +11,7 @@ from tkinter import messagebox, ttk
 from app import __version__, config
 from app.core import library, privacy
 from app.core.transcriber import check_gpu
-from app.ui.common import make_readonly, open_path_native, open_url, reveal_in_folder
+from app.ui.common import add_tooltip, make_readonly, open_path_native, open_url, reveal_in_folder
 from app.ui.edit_profile_window import EditProfileWindow
 from app.ui.home_tab import HomeTab
 from app.ui.refine_tab import RefineTab
@@ -180,6 +180,7 @@ class AppWindow(tk.Tk):
             style=LBL_STATUS_INFO,
         )
         self._status_label.pack(side="left", pady=S_3)
+        add_tooltip(self._status_label, lambda: self.status_var.get())
 
         self._update_status_bar()
 

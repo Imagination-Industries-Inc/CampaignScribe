@@ -14,6 +14,7 @@ from app.core import library, privacy, speakers_io, summarizer
 from app.data import db
 from app.prompts.default_prompt import DEFAULT_PROMPT_NAME, DEFAULT_SUMMARY_PROMPT
 from app.ui.common import (
+    ScrollableFrame,
     add_privacy_note,
     open_path_native,
     open_transcript_editor,
@@ -69,24 +70,28 @@ class SummarizeTab(ttk.Frame):
         self._busy = False
         self._cancel = threading.Event()
 
+        self._scroll = ScrollableFrame(self)
+        self._scroll.pack(fill="both", expand=True)
+        body = self._scroll.inner
+
         cfg = config.load_config()
 
         pad = {"padx": 10, "pady": 4}
-        ttk.Label(self, text="Summarization", style=LBL_HEADER).grid(
+        ttk.Label(body, text="Summarization", style=LBL_HEADER).grid(
             row=0, column=0, columnspan=4, sticky="w", **pad
         )
 
-        ttk.Label(self, text="Session (optional):").grid(row=1, column=0, sticky="w", **pad)
-        self.session_combo = ttk.Combobox(self, state="readonly", width=60)
+        ttk.Label(body, text="Session (optional):").grid(row=1, column=0, sticky="w", **pad)
+        self.session_combo = ttk.Combobox(body, state="readonly", width=60)
         self.session_combo.grid(row=1, column=1, columnspan=2, sticky="ew", **pad)
-        ttk.Button(self, text="Refresh", command=self.refresh_sessions).grid(
+        ttk.Button(body, text="Refresh", command=self.refresh_sessions).grid(
             row=1, column=3, sticky="w", **pad
         )
 
-        ttk.Label(self, text="Transcript files:").grid(row=2, column=0, sticky="nw", **pad)
-        self.files_box = tk.Listbox(self, height=4, selectmode="extended")
+        ttk.Label(body, text="Transcript files:").grid(row=2, column=0, sticky="nw", **pad)
+        self.files_box = tk.Listbox(body, height=4, selectmode="extended")
         self.files_box.grid(row=2, column=1, columnspan=2, sticky="nsew", **pad)
-        bcol = ttk.Frame(self)
+        bcol = ttk.Frame(body)
         bcol.grid(row=2, column=3, sticky="nw", **pad)
         ttk.Button(bcol, text="Add Files…", command=self._add_files).pack(fill="x", pady=2)
         ttk.Button(bcol, text="Edit Selected", command=self._edit_selected_transcript).pack(
@@ -95,11 +100,11 @@ class SummarizeTab(ttk.Frame):
         ttk.Button(bcol, text="Remove Selected", command=self._remove_files).pack(fill="x", pady=2)
         ttk.Button(bcol, text="Clear All", command=self._clear_files).pack(fill="x", pady=2)
 
-        ttk.Label(self, text="Summarization prompt:").grid(row=3, column=0, sticky="w", **pad)
-        self.prompt_combo = ttk.Combobox(self, state="readonly", width=50)
+        ttk.Label(body, text="Summarization prompt:").grid(row=3, column=0, sticky="w", **pad)
+        self.prompt_combo = ttk.Combobox(body, state="readonly", width=50)
         self.prompt_combo.grid(row=3, column=1, sticky="ew", **pad)
         self.prompt_combo.bind("<<ComboboxSelected>>", lambda _e: self._on_prompt_select())
-        prompt_btns = ttk.Frame(self)
+        prompt_btns = ttk.Frame(body)
         prompt_btns.grid(row=3, column=2, columnspan=2, sticky="w", **pad)
         ttk.Button(prompt_btns, text="New", command=self._new_prompt).pack(side="left", padx=2)
         ttk.Button(prompt_btns, text="Edit", command=self._edit_prompt).pack(side="left", padx=2)
@@ -107,34 +112,34 @@ class SummarizeTab(ttk.Frame):
             side="left", padx=2
         )
 
-        self.prompt_preview = tk.Text(self, height=8, wrap="word")
+        self.prompt_preview = tk.Text(body, height=8, wrap="word")
         self.prompt_preview.grid(row=4, column=0, columnspan=4, sticky="nsew", **pad)
         self.prompt_preview.config(state="disabled")
 
-        ttk.Label(self, text="Output folder:").grid(row=5, column=0, sticky="w", **pad)
+        ttk.Label(body, text="Output folder:").grid(row=5, column=0, sticky="w", **pad)
         self.out_var = tk.StringVar(value=cfg.get("last_output_folder", ""))
-        ttk.Entry(self, textvariable=self.out_var, width=60).grid(
+        ttk.Entry(body, textvariable=self.out_var, width=60).grid(
             row=5, column=1, columnspan=2, sticky="ew", **pad
         )
-        ttk.Button(self, text="Browse…", command=self._browse_out).grid(
+        ttk.Button(body, text="Browse…", command=self._browse_out).grid(
             row=5, column=3, sticky="w", **pad
         )
 
         self.go_btn = ttk.Button(
-            self, text="Start Summarization", style=BTN_ACCENT, command=self._start
+            body, text="Start Summarization", style=BTN_ACCENT, command=self._start
         )
         self.go_btn.grid(row=6, column=0, columnspan=4, sticky="ew", **pad)
 
         self.cancel_btn = ttk.Button(
-            self, text="Cancel", command=self._cancel_run, state="disabled"
+            body, text="Cancel", command=self._cancel_run, state="disabled"
         )
         self.cancel_btn.grid(row=7, column=0, sticky="w", **pad)
         self.status_var = tk.StringVar(value="")
-        ttk.Label(self, textvariable=self.status_var, style=LBL_DIM).grid(
+        ttk.Label(body, textvariable=self.status_var, style=LBL_DIM).grid(
             row=7, column=1, columnspan=3, sticky="w", **pad
         )
 
-        out_frame = ttk.LabelFrame(self, text="Output files")
+        out_frame = ttk.LabelFrame(body, text="Output files")
         out_frame.grid(row=8, column=0, columnspan=4, sticky="ew", **pad)
         self.out_box = tk.Listbox(out_frame, height=4)
         self.out_box.pack(side="left", fill="both", expand=True, padx=4, pady=4)
@@ -156,16 +161,16 @@ class SummarizeTab(ttk.Frame):
         )
         self.consolidate_btn.pack(side="right", padx=4)
 
-        self.columnconfigure(1, weight=1)
-        self.columnconfigure(2, weight=1)
-        self.rowconfigure(4, weight=1)
+        body.columnconfigure(1, weight=1)
+        body.columnconfigure(2, weight=1)
+        body.rowconfigure(4, weight=1)
 
         self.active_slug: str | None = None
         self._prompt_options: list[dict[str, Any]] = []
         self.refresh_prompts()
         self.refresh_sessions()
 
-        self._privacy_note = add_privacy_note(self, privacy.NOTE_TRANSCRIPT)
+        self._privacy_note = add_privacy_note(body, privacy.NOTE_TRANSCRIPT)
 
     def on_settings_changed(self):
         pass

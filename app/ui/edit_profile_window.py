@@ -27,6 +27,7 @@ class EditProfileWindow(tk.Toplevel):
 
         self.title("Edit Profile")
         self.geometry("760x680")
+        self.minsize(700, 540)
         self.columnconfigure(0, weight=1)
         self.rowconfigure(3, weight=1)
         pad = {"padx": S_3, "pady": S_2}

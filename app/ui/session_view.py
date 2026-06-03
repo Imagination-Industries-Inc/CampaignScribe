@@ -8,6 +8,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from app.core import library, speakers_io
 from app.data import db
+from app.ui.common import ScrollableFrame
 from app.ui.theme import BTN_ACCENT, BTN_GHOST, LBL_DIM, S_2, S_3
 
 IGNORE_CHOICE = "__ignore__"
@@ -28,9 +29,14 @@ class SessionView(tk.Toplevel):
 
         self.title(f"Session — {self.session.get('display_name', 'Untitled')}")
         self.geometry("760x640")
+        self.minsize(640, 520)
         pad = {"padx": S_3, "pady": S_2}
 
-        bar = ttk.Frame(self)
+        self._scroll = ScrollableFrame(self)
+        self._scroll.pack(fill="both", expand=True)
+        body = self._scroll.inner
+
+        bar = ttk.Frame(body)
         bar.pack(fill="x", **pad)
         ttk.Button(bar, text="◂ Home", style=BTN_GHOST, command=self._back_home).pack(side="left")
         self.name_var = tk.StringVar(value=self.session.get("display_name", ""))
@@ -40,7 +46,7 @@ class SessionView(tk.Toplevel):
         ttk.Label(bar, textvariable=self.status_var, style=LBL_DIM).pack(side="right")
 
         # Audio
-        audio_lf = ttk.LabelFrame(self, text="Audio")
+        audio_lf = ttk.LabelFrame(body, text="Audio")
         audio_lf.pack(fill="x", **pad)
         self.audio_box = tk.Listbox(audio_lf, height=3)
         self.audio_box.pack(side="left", fill="both", expand=True, padx=4, pady=4)
@@ -51,7 +57,7 @@ class SessionView(tk.Toplevel):
             self.audio_box.insert("end", f)
 
         # ① Confirm who's here
-        confirm_lf = ttk.LabelFrame(self, text="① Confirm who's here")
+        confirm_lf = ttk.LabelFrame(body, text="① Confirm who's here")
         confirm_lf.pack(fill="x", **pad)
         self.confirm_inner = ttk.Frame(confirm_lf)
         self.confirm_inner.pack(fill="x", padx=4, pady=4)
@@ -70,7 +76,7 @@ class SessionView(tk.Toplevel):
         ).pack(side="right")
 
         # ② Review speakers
-        review_lf = ttk.LabelFrame(self, text="② Review speakers")
+        review_lf = ttk.LabelFrame(body, text="② Review speakers")
         review_lf.pack(fill="both", expand=True, **pad)
         self.review_inner = ttk.Frame(review_lf)
         self.review_inner.pack(fill="both", expand=True, padx=4, pady=4)

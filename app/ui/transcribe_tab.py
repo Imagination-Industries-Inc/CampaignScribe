@@ -15,6 +15,7 @@ from app import config
 from app.core import audio, library, privacy, speaker_id, speakers_io, transcriber
 from app.data import db
 from app.ui.common import (
+    ScrollableFrame,
     add_privacy_note,
     open_path_native,
     open_transcript_editor,
@@ -45,70 +46,74 @@ class TranscribeTab(ttk.Frame):
         self._busy = False
         self._cancel = threading.Event()
 
+        self._scroll = ScrollableFrame(self)
+        self._scroll.pack(fill="both", expand=True)
+        body = self._scroll.inner
+
         cfg = config.load_config()
         pad = {"padx": 10, "pady": 4}
-        ttk.Label(self, text="Transcription", style=LBL_HEADER).grid(
+        ttk.Label(body, text="Transcription", style=LBL_HEADER).grid(
             row=0, column=0, columnspan=4, sticky="w", **pad
         )
 
-        ttk.Label(self, text="Session (optional):").grid(row=1, column=0, sticky="w", **pad)
-        self.session_combo = ttk.Combobox(self, state="readonly", width=60)
+        ttk.Label(body, text="Session (optional):").grid(row=1, column=0, sticky="w", **pad)
+        self.session_combo = ttk.Combobox(body, state="readonly", width=60)
         self.session_combo.grid(row=1, column=1, columnspan=2, sticky="ew", **pad)
         self.session_combo.bind("<<ComboboxSelected>>", lambda _e: self._on_session_selected())
-        ttk.Button(self, text="Refresh", command=self.refresh_sessions).grid(
+        ttk.Button(body, text="Refresh", command=self.refresh_sessions).grid(
             row=1, column=3, sticky="w", **pad
         )
 
-        ttk.Label(self, text="Audio files:").grid(row=2, column=0, sticky="nw", **pad)
-        self.files_box = tk.Listbox(self, height=4, selectmode="extended")
+        ttk.Label(body, text="Audio files:").grid(row=2, column=0, sticky="nw", **pad)
+        self.files_box = tk.Listbox(body, height=4, selectmode="extended")
         self.files_box.grid(row=2, column=1, columnspan=2, sticky="nsew", **pad)
-        bcol = ttk.Frame(self)
+        bcol = ttk.Frame(body)
         bcol.grid(row=2, column=3, sticky="nw", **pad)
         ttk.Button(bcol, text="Add Files…", command=self._add_files).pack(fill="x", pady=2)
         ttk.Button(bcol, text="Remove Selected", command=self._remove_files).pack(fill="x", pady=2)
         ttk.Button(bcol, text="Clear All", command=self._clear_files).pack(fill="x", pady=2)
 
-        ttk.Label(self, text="Whisper model:").grid(row=3, column=0, sticky="w", **pad)
+        ttk.Label(body, text="Whisper model:").grid(row=3, column=0, sticky="w", **pad)
         self.model_var = tk.StringVar(value=cfg.get("default_whisper_model", "large-v3"))
         ttk.Combobox(
-            self,
+            body,
             textvariable=self.model_var,
             state="readonly",
             width=12,
             values=["tiny", "base", "small", "medium", "large-v3"],
         ).grid(row=3, column=1, sticky="w", **pad)
 
-        ttk.Label(self, text="# speakers:").grid(row=3, column=2, sticky="e", **pad)
+        ttk.Label(body, text="# speakers:").grid(row=3, column=2, sticky="e", **pad)
         self.spk_var = tk.IntVar(value=int(cfg.get("default_num_speakers", 5)))
-        ttk.Spinbox(self, from_=1, to=20, textvariable=self.spk_var, width=8).grid(
+        ttk.Spinbox(body, from_=1, to=20, textvariable=self.spk_var, width=8).grid(
             row=3, column=3, sticky="w", **pad
         )
 
-        ttk.Label(self, text="Output folder:").grid(row=4, column=0, sticky="w", **pad)
+        ttk.Label(body, text="Output folder:").grid(row=4, column=0, sticky="w", **pad)
         self.out_var = tk.StringVar(value=cfg.get("last_output_folder", ""))
-        ttk.Entry(self, textvariable=self.out_var, width=60).grid(
+        ttk.Entry(body, textvariable=self.out_var, width=60).grid(
             row=4, column=1, columnspan=2, sticky="ew", **pad
         )
-        ttk.Button(self, text="Browse…", command=self._browse_out).grid(
+        ttk.Button(body, text="Browse…", command=self._browse_out).grid(
             row=4, column=3, sticky="w", **pad
         )
 
         self.go_btn = ttk.Button(
-            self, text="Start Transcription", style=BTN_ACCENT, command=self._start
+            body, text="Start Transcription", style=BTN_ACCENT, command=self._start
         )
         self.go_btn.grid(row=5, column=0, columnspan=4, sticky="ew", **pad)
 
         self.cancel_btn = ttk.Button(
-            self, text="Cancel", command=self._cancel_run, state="disabled"
+            body, text="Cancel", command=self._cancel_run, state="disabled"
         )
         self.cancel_btn.grid(row=6, column=0, sticky="w", **pad)
         self.status_var = tk.StringVar(value="")
-        ttk.Label(self, textvariable=self.status_var, style=LBL_DIM).grid(
+        ttk.Label(body, textvariable=self.status_var, style=LBL_DIM).grid(
             row=6, column=1, columnspan=3, sticky="w", **pad
         )
 
         cols = ("file", "state", "detail")
-        self.tree = ttk.Treeview(self, columns=cols, show="headings", height=8)
+        self.tree = ttk.Treeview(body, columns=cols, show="headings", height=8)
         self.tree.heading("file", text="File")
         self.tree.heading("state", text="State")
         self.tree.heading("detail", text="Detail")
@@ -117,7 +122,7 @@ class TranscribeTab(ttk.Frame):
         self.tree.column("detail", width=300, anchor="w")
         self.tree.grid(row=7, column=0, columnspan=4, sticky="nsew", **pad)
 
-        out_label = ttk.LabelFrame(self, text="Output files")
+        out_label = ttk.LabelFrame(body, text="Output files")
         out_label.grid(row=8, column=0, columnspan=4, sticky="ew", **pad)
         self.out_box = tk.Listbox(out_label, height=4)
         self.out_box.pack(side="left", fill="both", expand=True, padx=4, pady=4)
@@ -140,14 +145,14 @@ class TranscribeTab(ttk.Frame):
             out_label, text="→ Send improvements to Refine tab", command=self._send_to_refine
         ).pack(side="left", padx=4)
 
-        self.columnconfigure(1, weight=1)
-        self.columnconfigure(2, weight=1)
-        self.rowconfigure(7, weight=1)
+        body.columnconfigure(1, weight=1)
+        body.columnconfigure(2, weight=1)
+        body.rowconfigure(7, weight=1)
 
         self.active_slug: str | None = None
         self.refresh_sessions()
 
-        self._privacy_note = add_privacy_note(self, privacy.NOTE_SAMPLES)
+        self._privacy_note = add_privacy_note(body, privacy.NOTE_SAMPLES)
 
     def on_settings_changed(self):
         cfg = config.load_config()

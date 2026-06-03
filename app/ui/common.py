@@ -14,6 +14,47 @@ from app.core.proc import CREATE_NO_WINDOW
 from app.ui.theme import LBL_DIM, S_2, S_4
 
 
+class Tooltip:
+    """Hover tooltip for a widget. text may be a str or a 0-arg callable (for live text)."""
+
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self._tip = None
+        widget.bind("<Enter>", self._show, add="+")
+        widget.bind("<Leave>", self._hide, add="+")
+
+    def _show(self, _evt=None):
+        msg = self.text() if callable(self.text) else self.text
+        if not msg or self._tip is not None:
+            return
+        x = self.widget.winfo_rootx() + 12
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 4
+        self._tip = tk.Toplevel(self.widget)
+        self._tip.wm_overrideredirect(True)
+        self._tip.wm_geometry(f"+{x}+{y}")
+        tk.Label(
+            self._tip,
+            text=msg,
+            justify="left",
+            relief="solid",
+            borderwidth=1,
+            padx=6,
+            pady=3,
+            wraplength=600,
+        ).pack()
+
+    def _hide(self, _evt=None):
+        if self._tip is not None:
+            self._tip.destroy()
+            self._tip = None
+
+
+def add_tooltip(widget, text):
+    """Attach a hover Tooltip; returns it."""
+    return Tooltip(widget, text)
+
+
 def open_path_native(path: str) -> None:
     """Open a file or folder in the OS default app."""
     if not path:

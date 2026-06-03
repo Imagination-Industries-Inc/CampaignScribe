@@ -28,8 +28,12 @@ class RefineTab(ttk.Frame):
         self._busy = False
         self._cancel = threading.Event()
 
+        self._scroll = ScrollableFrame(self)
+        self._scroll.pack(fill="both", expand=True)
+        body = self._scroll.inner
+
         pad = {"padx": 10, "pady": 4}
-        header_box = ttk.Frame(self)
+        header_box = ttk.Frame(body)
         header_box.grid(row=0, column=0, columnspan=4, sticky="w", **pad)
         ttk.Label(header_box, text="Speaker Refinement", style=LBL_HEADER).pack(anchor="w")
         ttk.Label(
@@ -44,10 +48,10 @@ class RefineTab(ttk.Frame):
             justify="left",
         ).pack(anchor="w", pady=(2, 0))
 
-        ttk.Label(self, text="Audio files:").grid(row=1, column=0, sticky="nw", **pad)
-        self.files_box = tk.Listbox(self, height=4, selectmode="extended")
+        ttk.Label(body, text="Audio files:").grid(row=1, column=0, sticky="nw", **pad)
+        self.files_box = tk.Listbox(body, height=4, selectmode="extended")
         self.files_box.grid(row=1, column=1, columnspan=2, sticky="nsew", **pad)
-        btn_col = ttk.Frame(self)
+        btn_col = ttk.Frame(body)
         btn_col.grid(row=1, column=3, sticky="nw", **pad)
         ttk.Button(btn_col, text="Add Files…", command=self._add_files).pack(fill="x", pady=2)
         ttk.Button(btn_col, text="Remove Selected", command=self._remove_selected).pack(
@@ -59,28 +63,28 @@ class RefineTab(ttk.Frame):
         ).pack(fill="x", pady=8)
 
         self.go_btn = ttk.Button(
-            self, text="Analyze & Generate Suggestions", style=BTN_ACCENT, command=self._start
+            body, text="Analyze & Generate Suggestions", style=BTN_ACCENT, command=self._start
         )
         self.go_btn.grid(row=2, column=0, columnspan=4, sticky="ew", **pad)
 
         self.cancel_btn = ttk.Button(
-            self, text="Cancel", command=self._cancel_run, state="disabled"
+            body, text="Cancel", command=self._cancel_run, state="disabled"
         )
         self.cancel_btn.grid(row=3, column=0, sticky="w", **pad)
-        self.progress = ttk.Progressbar(self, mode="determinate", maximum=100)
+        self.progress = ttk.Progressbar(body, mode="determinate", maximum=100)
         self.progress.grid(row=3, column=1, columnspan=3, sticky="ew", **pad)
 
         self.status_var = tk.StringVar(value="Load a session or select a speakers.json to begin.")
-        ttk.Label(self, textvariable=self.status_var, style=LBL_DIM).grid(
+        ttk.Label(body, textvariable=self.status_var, style=LBL_DIM).grid(
             row=4, column=0, columnspan=4, sticky="w", **pad
         )
 
         # Scrollable suggestions area
-        self.scroll = ScrollableFrame(self)
+        self.scroll = ScrollableFrame(body)
         self.scroll.grid(row=5, column=0, columnspan=4, sticky="nsew", **pad)
 
         self.save_btn = ttk.Button(
-            self,
+            body,
             text="Save Accepted Changes to speakers.json",
             style=BTN_ACCENT,
             command=self._save_changes,
@@ -88,14 +92,14 @@ class RefineTab(ttk.Frame):
         )
         self.save_btn.grid(row=6, column=0, columnspan=4, sticky="e", **pad)
 
-        self.columnconfigure(1, weight=1)
-        self.columnconfigure(2, weight=1)
-        self.rowconfigure(5, weight=1)
+        body.columnconfigure(1, weight=1)
+        body.columnconfigure(2, weight=1)
+        body.rowconfigure(5, weight=1)
 
         # Per-suggestion accepted state, keyed by index/type
         self._accept_vars: dict[str, tk.BooleanVar] = {}
 
-        self._privacy_note = add_privacy_note(self, privacy.NOTE_SAMPLES)
+        self._privacy_note = add_privacy_note(body, privacy.NOTE_SAMPLES)
 
     def on_settings_changed(self):
         pass
