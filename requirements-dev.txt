@@ -10,5 +10,3 @@ bandit>=1.9.4
 semgrep>=1.164.0
 pip-audit>=2.10.0
 pre-commit>=4.6.0
-# Transitive (via semgrep); pinned to clear PYSEC-2026-178 (CVE in pyjwt <2.13.0). Dev-tooling only.
-pyjwt>=2.13.0
