@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-import ffmpeg
+import pytest
 
 
 def _args(max_seconds):
-    # Rebuild the same ffmpeg stream convert_to_wav builds, to inspect the args.
+    # ffmpeg-python lives in requirements.txt (the ML/audio stack), which CI does
+    # NOT install — skip the arg-inspection tests there. Rebuild the same stream
+    # convert_to_wav builds, to inspect the ffmpeg CLI args without running ffmpeg.
+    ffmpeg = pytest.importorskip("ffmpeg")
     out_kwargs = dict(ar=16000, ac=1, format="wav", loglevel="error")
     if max_seconds and max_seconds > 0:
         out_kwargs["t"] = max_seconds
