@@ -12,10 +12,10 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
 from app import config
-from app.core import audio, privacy, speaker_id, speakers_io, transcriber
+from app.core import audio, library, privacy, speaker_id, speakers_io, transcriber
 from app.data import db
-from app.ui.campaign_picker import CampaignPicker
 from app.ui.common import (
+    ScrollableFrame,
     add_privacy_note,
     open_path_native,
     open_transcript_editor,
@@ -46,83 +46,84 @@ class TranscribeTab(ttk.Frame):
         self._busy = False
         self._cancel = threading.Event()
 
+        self._scroll = ScrollableFrame(self)
+        self._scroll.pack(fill="both", expand=True)
+        body = self._scroll.inner
+
         cfg = config.load_config()
         pad = {"padx": 10, "pady": 4}
-        ttk.Label(self, text="Transcription", style=LBL_HEADER).grid(
+        ttk.Label(body, text="Transcription", style=LBL_HEADER).grid(
             row=0, column=0, columnspan=4, sticky="w", **pad
         )
 
-        self.picker = CampaignPicker(self, on_change=self._on_picker_change)
-        self.picker.grid(row=1, column=0, columnspan=4, sticky="ew", **pad)
-
-        ttk.Label(self, text="Session (optional):").grid(row=2, column=0, sticky="w", **pad)
-        self.session_combo = ttk.Combobox(self, state="readonly", width=60)
-        self.session_combo.grid(row=2, column=1, columnspan=2, sticky="ew", **pad)
+        ttk.Label(body, text="Session (optional):").grid(row=1, column=0, sticky="w", **pad)
+        self.session_combo = ttk.Combobox(body, state="readonly", width=60)
+        self.session_combo.grid(row=1, column=1, columnspan=2, sticky="ew", **pad)
         self.session_combo.bind("<<ComboboxSelected>>", lambda _e: self._on_session_selected())
-        ttk.Button(self, text="Refresh", command=self.refresh_sessions).grid(
-            row=2, column=3, sticky="w", **pad
+        ttk.Button(body, text="Refresh", command=self.refresh_sessions).grid(
+            row=1, column=3, sticky="w", **pad
         )
 
-        ttk.Label(self, text="Audio files:").grid(row=3, column=0, sticky="nw", **pad)
-        self.files_box = tk.Listbox(self, height=4, selectmode="extended")
-        self.files_box.grid(row=3, column=1, columnspan=2, sticky="nsew", **pad)
-        bcol = ttk.Frame(self)
-        bcol.grid(row=3, column=3, sticky="nw", **pad)
+        ttk.Label(body, text="Audio files:").grid(row=2, column=0, sticky="nw", **pad)
+        self.files_box = tk.Listbox(body, height=4, selectmode="extended")
+        self.files_box.grid(row=2, column=1, columnspan=2, sticky="nsew", **pad)
+        bcol = ttk.Frame(body)
+        bcol.grid(row=2, column=3, sticky="nw", **pad)
         ttk.Button(bcol, text="Add Files…", command=self._add_files).pack(fill="x", pady=2)
         ttk.Button(bcol, text="Remove Selected", command=self._remove_files).pack(fill="x", pady=2)
         ttk.Button(bcol, text="Clear All", command=self._clear_files).pack(fill="x", pady=2)
 
-        ttk.Label(self, text="Whisper model:").grid(row=4, column=0, sticky="w", **pad)
+        ttk.Label(body, text="Whisper model:").grid(row=3, column=0, sticky="w", **pad)
         self.model_var = tk.StringVar(value=cfg.get("default_whisper_model", "large-v3"))
         ttk.Combobox(
-            self,
+            body,
             textvariable=self.model_var,
             state="readonly",
             width=12,
             values=["tiny", "base", "small", "medium", "large-v3"],
-        ).grid(row=4, column=1, sticky="w", **pad)
+        ).grid(row=3, column=1, sticky="w", **pad)
 
-        ttk.Label(self, text="# speakers:").grid(row=4, column=2, sticky="e", **pad)
+        ttk.Label(body, text="# speakers:").grid(row=3, column=2, sticky="e", **pad)
         self.spk_var = tk.IntVar(value=int(cfg.get("default_num_speakers", 5)))
-        ttk.Spinbox(self, from_=1, to=20, textvariable=self.spk_var, width=8).grid(
+        ttk.Spinbox(body, from_=1, to=20, textvariable=self.spk_var, width=8).grid(
+            row=3, column=3, sticky="w", **pad
+        )
+
+        ttk.Label(body, text="Output folder:").grid(row=4, column=0, sticky="w", **pad)
+        self.out_var = tk.StringVar(value=cfg.get("last_output_folder", ""))
+        ttk.Entry(body, textvariable=self.out_var, width=60).grid(
+            row=4, column=1, columnspan=2, sticky="ew", **pad
+        )
+        ttk.Button(body, text="Browse…", command=self._browse_out).grid(
             row=4, column=3, sticky="w", **pad
         )
 
-        ttk.Label(self, text="Output folder:").grid(row=5, column=0, sticky="w", **pad)
-        self.out_var = tk.StringVar(value=cfg.get("last_output_folder", ""))
-        ttk.Entry(self, textvariable=self.out_var, width=60).grid(
-            row=5, column=1, columnspan=2, sticky="ew", **pad
-        )
-        ttk.Button(self, text="Browse…", command=self._browse_out).grid(
-            row=5, column=3, sticky="w", **pad
-        )
-
         self.go_btn = ttk.Button(
-            self, text="Start Transcription", style=BTN_ACCENT, command=self._start
+            body, text="Start Transcription", style=BTN_ACCENT, command=self._start
         )
-        self.go_btn.grid(row=6, column=0, columnspan=4, sticky="ew", **pad)
+        self.go_btn.grid(row=5, column=0, columnspan=4, sticky="ew", **pad)
 
         self.cancel_btn = ttk.Button(
-            self, text="Cancel", command=self._cancel_run, state="disabled"
+            body, text="Cancel", command=self._cancel_run, state="disabled"
         )
-        self.cancel_btn.grid(row=7, column=0, sticky="w", **pad)
+        self.cancel_btn.grid(row=6, column=0, sticky="w", **pad)
         self.status_var = tk.StringVar(value="")
-        ttk.Label(self, textvariable=self.status_var, style=LBL_DIM).grid(
-            row=7, column=1, columnspan=3, sticky="w", **pad
+        ttk.Label(body, textvariable=self.status_var, style=LBL_DIM).grid(
+            row=6, column=1, columnspan=3, sticky="w", **pad
         )
 
         cols = ("file", "state", "detail")
-        self.tree = ttk.Treeview(self, columns=cols, show="headings", height=8)
+        self.tree = ttk.Treeview(body, columns=cols, show="headings", height=8)
         self.tree.heading("file", text="File")
         self.tree.heading("state", text="State")
         self.tree.heading("detail", text="Detail")
         self.tree.column("file", width=380, anchor="w")
         self.tree.column("state", width=120, anchor="w")
         self.tree.column("detail", width=300, anchor="w")
-        self.tree.grid(row=8, column=0, columnspan=4, sticky="nsew", **pad)
+        self.tree.grid(row=7, column=0, columnspan=4, sticky="nsew", **pad)
 
-        out_label = ttk.LabelFrame(self, text="Output files")
-        out_label.grid(row=9, column=0, columnspan=4, sticky="ew", **pad)
+        out_label = ttk.LabelFrame(body, text="Output files")
+        out_label.grid(row=8, column=0, columnspan=4, sticky="ew", **pad)
         self.out_box = tk.Listbox(out_label, height=4)
         self.out_box.pack(side="left", fill="both", expand=True, padx=4, pady=4)
         self.out_box.bind("<Double-Button-1>", lambda _e: self._reveal_selected_output())
@@ -144,14 +145,14 @@ class TranscribeTab(ttk.Frame):
             out_label, text="→ Send improvements to Refine tab", command=self._send_to_refine
         ).pack(side="left", padx=4)
 
-        self.columnconfigure(1, weight=1)
-        self.columnconfigure(2, weight=1)
-        self.rowconfigure(8, weight=1)
+        body.columnconfigure(1, weight=1)
+        body.columnconfigure(2, weight=1)
+        body.rowconfigure(7, weight=1)
 
+        self.active_slug: str | None = None
         self.refresh_sessions()
-        self.speakers_path = self.picker.selected_path()
 
-        self._privacy_note = add_privacy_note(self, privacy.NOTE_SAMPLES)
+        self._privacy_note = add_privacy_note(body, privacy.NOTE_SAMPLES)
 
     def on_settings_changed(self):
         cfg = config.load_config()
@@ -159,12 +160,7 @@ class TranscribeTab(ttk.Frame):
         self.model_var.set(cfg.get("default_whisper_model", "large-v3"))
 
     def on_show(self):
-        self.picker.refresh()
-        self.speakers_path = self.picker.selected_path()
         self.refresh_sessions()
-
-    def _on_picker_change(self):
-        self.speakers_path = self.picker.selected_path()
 
     def refresh_sessions(self):
         sessions = db.list_sessions()
@@ -183,6 +179,24 @@ class TranscribeTab(ttk.Frame):
         if sid:
             self.load_session(sid, refresh=False)
 
+    def load_for_session(self, session: dict) -> None:
+        """Set the active session and derive speakers.json from its campaign_slug
+        (current library version), falling back to the session's stored path."""
+        self.session_id = int(session["id"])
+        self.active_slug = session.get("campaign_slug")
+        self.speakers_path = self._resolve_speakers_path(session)
+        # populate audio/transcript inputs from the session as load_session did
+        self.load_session(self.session_id)
+
+    def _resolve_speakers_path(self, session: dict) -> str | None:
+        slug = session.get("campaign_slug")
+        if slug:
+            try:
+                return str(library.current_version_path(slug))
+            except FileNotFoundError:
+                pass
+        return session.get("speakers_json_path")
+
     def load_session(self, sid: int, refresh: bool = True) -> None:
         """Populate the form from a saved session: select it, load its source
         audio files and speakers.json. Used by the session dropdown and by
@@ -192,14 +206,13 @@ class TranscribeTab(ttk.Frame):
         if sid in self._session_index:
             self.session_combo.current(self._session_index.index(sid))
         s = db.get_session(sid) or {}
+        self.active_slug = s.get("campaign_slug")
         try:
             files = json.loads(s.get("source_audio_files") or "[]")
         except Exception:
             files = []
         self._set_audio_files(files)
-        spk = s.get("speakers_json_path")
-        if spk and not self.picker.select_file(spk):
-            self.speakers_path = spk  # fallback: file unreadable/missing
+        self.speakers_path = self._resolve_speakers_path(s)
         self.session_id = sid
 
     def _set_audio_files(self, files: list[str]) -> None:
@@ -316,7 +329,23 @@ class TranscribeTab(ttk.Frame):
         if self._busy:
             return
         if not self.speakers_path:
-            messagebox.showerror("CampaignScribe", "Pick a speakers.json first.")
+            slug = getattr(self, "active_slug", None)
+            if slug and hasattr(self.app, "open_edit_profile"):
+                if messagebox.askyesno(
+                    "Build speaker profile?",
+                    "This campaign has no speaker profile yet.\n\n"
+                    "Discover speakers from your audio to build one? You'll review and "
+                    "edit the profile in the next window, then come back here and click "
+                    "Transcribe.",
+                ):
+                    audio = self.audio_files[0] if self.audio_files else None
+                    self.app.open_edit_profile(slug, discover_audio=audio)
+                return
+            messagebox.showerror(
+                "CampaignScribe",
+                "No speaker profile loaded — open a session from a campaign in Home, "
+                "or build a profile first.",
+            )
             return
         if not self.audio_files:
             messagebox.showerror("CampaignScribe", "Add at least one audio file.")
@@ -436,6 +465,13 @@ class TranscribeTab(ttk.Frame):
                     except OSError:
                         pass
 
+        # persist clusters even on partial/cancelled runs — partial speaker data still helps Review
+        if all_segments and self.session_id:
+            try:
+                self._persist_detected_speakers(self.session_id, all_segments)
+            except Exception:
+                pass
+
         # After all files: produce speakers_improvements
         if all_segments and not self._cancel.is_set():
             try:
@@ -507,6 +543,23 @@ class TranscribeTab(ttk.Frame):
             return
         reveal_in_folder(self.out_box.get(sel[0]))
 
+    def _persist_detected_speakers(self, session_id: int, segments: list) -> None:
+        """Record the distinct diarized speaker labels from a transcribe run onto
+        the session, so the SessionView 'Review speakers' step has real clusters."""
+        labels = []
+        for seg in segments:
+            lab = seg.get("speaker") if isinstance(seg, dict) else getattr(seg, "speaker", None)
+            if lab and lab not in labels:
+                labels.append(lab)
+        db.update_session(session_id, num_speakers_detected=len(labels))
+        existing = {r["source_speaker_id"] for r in db.get_speakers_for_session(session_id)}
+        for lab in labels:
+            if lab not in existing:
+                db.add_speaker_profile(
+                    session_id,
+                    {"source_speaker_id": lab, "display_name": "", "include_in_tracking": 1},
+                )
+
     def _send_to_refine(self):
         # Find the most recent speakers_improvements_*.json in results
         target = next(
@@ -528,19 +581,12 @@ class TranscribeTab(ttk.Frame):
             return
         # Push into Refine tab
         refine_tab = self.app.refine_tab
-        slug = self.picker.selected_slug()
-        if slug and refine_tab.picker.select_by_slug(slug):
-            pass  # campaign selection syncs refine.speakers_path + speakers_doc via on_change
-        elif self.speakers_path and refine_tab.picker.select_file(self.speakers_path):
-            pass  # loose file: picker file-mode syncs refine.speakers_path + speakers_doc,
-            # and selected_slug() now returns None so Refine "accept" saves in place
-        elif self.speakers_path:
-            # last resort (file unreadable): set directly
-            refine_tab.speakers_path = self.speakers_path
-            try:
-                refine_tab.speakers_doc = speakers_io.load_speakers_json(self.speakers_path)
-            except Exception:
-                pass
+        refine_tab.active_slug = self.active_slug
+        refine_tab.speakers_path = self.speakers_path
+        try:
+            refine_tab.speakers_doc = speakers_io.load_speakers_json(self.speakers_path)
+        except Exception:
+            pass
         refine_tab.suggestions = doc
         refine_tab._render_suggestions()
         self.app.notebook.select(self.app.refine_tab)

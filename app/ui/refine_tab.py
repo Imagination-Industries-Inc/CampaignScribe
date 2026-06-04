@@ -11,7 +11,6 @@ from typing import Any
 
 from app import config
 from app.core import audio, library, privacy, speaker_id, speakers_io, transcriber
-from app.ui.campaign_picker import CampaignPicker
 from app.ui.common import ScrollableFrame, add_privacy_note
 from app.ui.theme import BTN_ACCENT, LBL_DIM, LBL_EYEBROW, LBL_HEADER
 
@@ -24,11 +23,17 @@ class RefineTab(ttk.Frame):
         self.speakers_path: str | None = None
         self.speakers_doc: dict[str, Any] | None = None
         self.suggestions: dict[str, Any] | None = None
+        self.active_slug: str | None = None
+        self.session_id: int | None = None
         self._busy = False
         self._cancel = threading.Event()
 
+        self._scroll = ScrollableFrame(self)
+        self._scroll.pack(fill="both", expand=True)
+        body = self._scroll.inner
+
         pad = {"padx": 10, "pady": 4}
-        header_box = ttk.Frame(self)
+        header_box = ttk.Frame(body)
         header_box.grid(row=0, column=0, columnspan=4, sticky="w", **pad)
         ttk.Label(header_box, text="Speaker Refinement", style=LBL_HEADER).pack(anchor="w")
         ttk.Label(
@@ -43,14 +48,11 @@ class RefineTab(ttk.Frame):
             justify="left",
         ).pack(anchor="w", pady=(2, 0))
 
-        self.picker = CampaignPicker(self, on_change=self._on_picker_change)
-        self.picker.grid(row=1, column=0, columnspan=4, sticky="ew", **pad)
-
-        ttk.Label(self, text="Audio files:").grid(row=2, column=0, sticky="nw", **pad)
-        self.files_box = tk.Listbox(self, height=4, selectmode="extended")
-        self.files_box.grid(row=2, column=1, columnspan=2, sticky="nsew", **pad)
-        btn_col = ttk.Frame(self)
-        btn_col.grid(row=2, column=3, sticky="nw", **pad)
+        ttk.Label(body, text="Audio files:").grid(row=1, column=0, sticky="nw", **pad)
+        self.files_box = tk.Listbox(body, height=4, selectmode="extended")
+        self.files_box.grid(row=1, column=1, columnspan=2, sticky="nsew", **pad)
+        btn_col = ttk.Frame(body)
+        btn_col.grid(row=1, column=3, sticky="nw", **pad)
         ttk.Button(btn_col, text="Add Files…", command=self._add_files).pack(fill="x", pady=2)
         ttk.Button(btn_col, text="Remove Selected", command=self._remove_selected).pack(
             fill="x", pady=2
@@ -61,62 +63,70 @@ class RefineTab(ttk.Frame):
         ).pack(fill="x", pady=8)
 
         self.go_btn = ttk.Button(
-            self, text="Analyze & Generate Suggestions", style=BTN_ACCENT, command=self._start
+            body, text="Analyze & Generate Suggestions", style=BTN_ACCENT, command=self._start
         )
-        self.go_btn.grid(row=3, column=0, columnspan=4, sticky="ew", **pad)
+        self.go_btn.grid(row=2, column=0, columnspan=4, sticky="ew", **pad)
 
         self.cancel_btn = ttk.Button(
-            self, text="Cancel", command=self._cancel_run, state="disabled"
+            body, text="Cancel", command=self._cancel_run, state="disabled"
         )
-        self.cancel_btn.grid(row=4, column=0, sticky="w", **pad)
-        self.progress = ttk.Progressbar(self, mode="determinate", maximum=100)
-        self.progress.grid(row=4, column=1, columnspan=3, sticky="ew", **pad)
+        self.cancel_btn.grid(row=3, column=0, sticky="w", **pad)
+        self.progress = ttk.Progressbar(body, mode="determinate", maximum=100)
+        self.progress.grid(row=3, column=1, columnspan=3, sticky="ew", **pad)
 
-        self.status_var = tk.StringVar(value="Pick a speakers.json and one or more audio files.")
-        ttk.Label(self, textvariable=self.status_var, style=LBL_DIM).grid(
-            row=5, column=0, columnspan=4, sticky="w", **pad
+        self.status_var = tk.StringVar(value="Load a session or select a speakers.json to begin.")
+        ttk.Label(body, textvariable=self.status_var, style=LBL_DIM).grid(
+            row=4, column=0, columnspan=4, sticky="w", **pad
         )
 
         # Scrollable suggestions area
-        self.scroll = ScrollableFrame(self)
-        self.scroll.grid(row=6, column=0, columnspan=4, sticky="nsew", **pad)
+        self.scroll = ScrollableFrame(body)
+        self.scroll.grid(row=5, column=0, columnspan=4, sticky="nsew", **pad)
 
         self.save_btn = ttk.Button(
-            self,
+            body,
             text="Save Accepted Changes to speakers.json",
             style=BTN_ACCENT,
             command=self._save_changes,
             state="disabled",
         )
-        self.save_btn.grid(row=7, column=0, columnspan=4, sticky="e", **pad)
+        self.save_btn.grid(row=6, column=0, columnspan=4, sticky="e", **pad)
 
-        self.columnconfigure(1, weight=1)
-        self.columnconfigure(2, weight=1)
-        self.rowconfigure(6, weight=1)
+        body.columnconfigure(1, weight=1)
+        body.columnconfigure(2, weight=1)
+        body.rowconfigure(5, weight=1)
 
         # Per-suggestion accepted state, keyed by index/type
         self._accept_vars: dict[str, tk.BooleanVar] = {}
 
-        self.speakers_path = self.picker.selected_path()
-
-        self._privacy_note = add_privacy_note(self, privacy.NOTE_SAMPLES)
+        self._privacy_note = add_privacy_note(body, privacy.NOTE_SAMPLES)
 
     def on_settings_changed(self):
         pass
 
     def on_show(self):
-        self.picker.refresh()
-        self._on_picker_change()
+        pass
 
-    def _on_picker_change(self):
-        self.speakers_path = self.picker.selected_path()
+    def load_for_session(self, session: dict) -> None:
+        """Set the active session and derive speakers.json from its campaign_slug
+        (current library version), falling back to the session's stored path."""
+        self.session_id = int(session["id"])
+        self.active_slug = session.get("campaign_slug")
+        self.speakers_path = self._resolve_speakers_path(session)
         if self.speakers_path:
             try:
                 self.speakers_doc = speakers_io.load_speakers_json(self.speakers_path)
             except Exception:
                 self.speakers_doc = None
-        else:
-            self.speakers_doc = None
+
+    def _resolve_speakers_path(self, session: dict) -> str | None:
+        slug = session.get("campaign_slug")
+        if slug:
+            try:
+                return str(library.current_version_path(slug))
+            except FileNotFoundError:
+                pass
+        return session.get("speakers_json_path")
 
     # ---------- file pickers ----------
 
@@ -179,7 +189,9 @@ class RefineTab(ttk.Frame):
         if self._busy:
             return
         if not self.speakers_path or not self.speakers_doc:
-            messagebox.showerror("CampaignScribe", "Pick a speakers.json first.")
+            messagebox.showerror(
+                "CampaignScribe", "No speaker profile loaded — open a session from Home first."
+            )
             return
         if not self.audio_files:
             messagebox.showerror("CampaignScribe", "Add at least one audio file.")
@@ -256,7 +268,9 @@ class RefineTab(ttk.Frame):
         if not path:
             return
         if not self.speakers_path or not self.speakers_doc:
-            messagebox.showerror("CampaignScribe", "Pick a speakers.json first.")
+            messagebox.showerror(
+                "CampaignScribe", "No speaker profile loaded — open a session from Home first."
+            )
             return
         try:
             with open(path, encoding="utf-8") as f:
@@ -416,7 +430,7 @@ class RefineTab(ttk.Frame):
             )
 
         try:
-            slug = self.picker.selected_slug()
+            slug = self.active_slug
             if slug:
                 library.add_version(slug, doc, label="refined")
                 messagebox.showinfo("CampaignScribe", "New version saved to campaign library.")

@@ -10,11 +10,11 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
 from app import config
-from app.core import privacy, speakers_io, summarizer
+from app.core import library, privacy, speakers_io, summarizer
 from app.data import db
 from app.prompts.default_prompt import DEFAULT_PROMPT_NAME, DEFAULT_SUMMARY_PROMPT
-from app.ui.campaign_picker import CampaignPicker
 from app.ui.common import (
+    ScrollableFrame,
     add_privacy_note,
     open_path_native,
     open_transcript_editor,
@@ -70,28 +70,29 @@ class SummarizeTab(ttk.Frame):
         self._busy = False
         self._cancel = threading.Event()
 
+        self._scroll = ScrollableFrame(self)
+        self._scroll.pack(fill="both", expand=True)
+        body = self._scroll.inner
+
         cfg = config.load_config()
 
         pad = {"padx": 10, "pady": 4}
-        ttk.Label(self, text="Summarization", style=LBL_HEADER).grid(
+        ttk.Label(body, text="Summarization", style=LBL_HEADER).grid(
             row=0, column=0, columnspan=4, sticky="w", **pad
         )
 
-        self.picker = CampaignPicker(self, on_change=self._on_picker_change)
-        self.picker.grid(row=1, column=0, columnspan=4, sticky="ew", **pad)
-
-        ttk.Label(self, text="Session (optional):").grid(row=2, column=0, sticky="w", **pad)
-        self.session_combo = ttk.Combobox(self, state="readonly", width=60)
-        self.session_combo.grid(row=2, column=1, columnspan=2, sticky="ew", **pad)
-        ttk.Button(self, text="Refresh", command=self.refresh_sessions).grid(
-            row=2, column=3, sticky="w", **pad
+        ttk.Label(body, text="Session (optional):").grid(row=1, column=0, sticky="w", **pad)
+        self.session_combo = ttk.Combobox(body, state="readonly", width=60)
+        self.session_combo.grid(row=1, column=1, columnspan=2, sticky="ew", **pad)
+        ttk.Button(body, text="Refresh", command=self.refresh_sessions).grid(
+            row=1, column=3, sticky="w", **pad
         )
 
-        ttk.Label(self, text="Transcript files:").grid(row=3, column=0, sticky="nw", **pad)
-        self.files_box = tk.Listbox(self, height=4, selectmode="extended")
-        self.files_box.grid(row=3, column=1, columnspan=2, sticky="nsew", **pad)
-        bcol = ttk.Frame(self)
-        bcol.grid(row=3, column=3, sticky="nw", **pad)
+        ttk.Label(body, text="Transcript files:").grid(row=2, column=0, sticky="nw", **pad)
+        self.files_box = tk.Listbox(body, height=4, selectmode="extended")
+        self.files_box.grid(row=2, column=1, columnspan=2, sticky="nsew", **pad)
+        bcol = ttk.Frame(body)
+        bcol.grid(row=2, column=3, sticky="nw", **pad)
         ttk.Button(bcol, text="Add Files…", command=self._add_files).pack(fill="x", pady=2)
         ttk.Button(bcol, text="Edit Selected", command=self._edit_selected_transcript).pack(
             fill="x", pady=2
@@ -99,47 +100,47 @@ class SummarizeTab(ttk.Frame):
         ttk.Button(bcol, text="Remove Selected", command=self._remove_files).pack(fill="x", pady=2)
         ttk.Button(bcol, text="Clear All", command=self._clear_files).pack(fill="x", pady=2)
 
-        ttk.Label(self, text="Summarization prompt:").grid(row=4, column=0, sticky="w", **pad)
-        self.prompt_combo = ttk.Combobox(self, state="readonly", width=50)
-        self.prompt_combo.grid(row=4, column=1, sticky="ew", **pad)
+        ttk.Label(body, text="Summarization prompt:").grid(row=3, column=0, sticky="w", **pad)
+        self.prompt_combo = ttk.Combobox(body, state="readonly", width=50)
+        self.prompt_combo.grid(row=3, column=1, sticky="ew", **pad)
         self.prompt_combo.bind("<<ComboboxSelected>>", lambda _e: self._on_prompt_select())
-        prompt_btns = ttk.Frame(self)
-        prompt_btns.grid(row=4, column=2, columnspan=2, sticky="w", **pad)
+        prompt_btns = ttk.Frame(body)
+        prompt_btns.grid(row=3, column=2, columnspan=2, sticky="w", **pad)
         ttk.Button(prompt_btns, text="New", command=self._new_prompt).pack(side="left", padx=2)
         ttk.Button(prompt_btns, text="Edit", command=self._edit_prompt).pack(side="left", padx=2)
         ttk.Button(prompt_btns, text="Delete", command=self._delete_prompt).pack(
             side="left", padx=2
         )
 
-        self.prompt_preview = tk.Text(self, height=8, wrap="word")
-        self.prompt_preview.grid(row=5, column=0, columnspan=4, sticky="nsew", **pad)
+        self.prompt_preview = tk.Text(body, height=8, wrap="word")
+        self.prompt_preview.grid(row=4, column=0, columnspan=4, sticky="nsew", **pad)
         self.prompt_preview.config(state="disabled")
 
-        ttk.Label(self, text="Output folder:").grid(row=6, column=0, sticky="w", **pad)
+        ttk.Label(body, text="Output folder:").grid(row=5, column=0, sticky="w", **pad)
         self.out_var = tk.StringVar(value=cfg.get("last_output_folder", ""))
-        ttk.Entry(self, textvariable=self.out_var, width=60).grid(
-            row=6, column=1, columnspan=2, sticky="ew", **pad
+        ttk.Entry(body, textvariable=self.out_var, width=60).grid(
+            row=5, column=1, columnspan=2, sticky="ew", **pad
         )
-        ttk.Button(self, text="Browse…", command=self._browse_out).grid(
-            row=6, column=3, sticky="w", **pad
+        ttk.Button(body, text="Browse…", command=self._browse_out).grid(
+            row=5, column=3, sticky="w", **pad
         )
 
         self.go_btn = ttk.Button(
-            self, text="Start Summarization", style=BTN_ACCENT, command=self._start
+            body, text="Start Summarization", style=BTN_ACCENT, command=self._start
         )
-        self.go_btn.grid(row=7, column=0, columnspan=4, sticky="ew", **pad)
+        self.go_btn.grid(row=6, column=0, columnspan=4, sticky="ew", **pad)
 
         self.cancel_btn = ttk.Button(
-            self, text="Cancel", command=self._cancel_run, state="disabled"
+            body, text="Cancel", command=self._cancel_run, state="disabled"
         )
-        self.cancel_btn.grid(row=8, column=0, sticky="w", **pad)
+        self.cancel_btn.grid(row=7, column=0, sticky="w", **pad)
         self.status_var = tk.StringVar(value="")
-        ttk.Label(self, textvariable=self.status_var, style=LBL_DIM).grid(
-            row=8, column=1, columnspan=3, sticky="w", **pad
+        ttk.Label(body, textvariable=self.status_var, style=LBL_DIM).grid(
+            row=7, column=1, columnspan=3, sticky="w", **pad
         )
 
-        out_frame = ttk.LabelFrame(self, text="Output files")
-        out_frame.grid(row=9, column=0, columnspan=4, sticky="ew", **pad)
+        out_frame = ttk.LabelFrame(body, text="Output files")
+        out_frame.grid(row=8, column=0, columnspan=4, sticky="ew", **pad)
         self.out_box = tk.Listbox(out_frame, height=4)
         self.out_box.pack(side="left", fill="both", expand=True, padx=4, pady=4)
         self.out_box.bind("<Double-Button-1>", lambda _e: self._reveal_selected())
@@ -160,28 +161,40 @@ class SummarizeTab(ttk.Frame):
         )
         self.consolidate_btn.pack(side="right", padx=4)
 
-        self.columnconfigure(1, weight=1)
-        self.columnconfigure(2, weight=1)
-        self.rowconfigure(5, weight=1)
+        body.columnconfigure(1, weight=1)
+        body.columnconfigure(2, weight=1)
+        body.rowconfigure(4, weight=1)
 
+        self.active_slug: str | None = None
         self._prompt_options: list[dict[str, Any]] = []
         self.refresh_prompts()
         self.refresh_sessions()
-        self.speakers_path = self.picker.selected_path()
 
-        self._privacy_note = add_privacy_note(self, privacy.NOTE_TRANSCRIPT)
+        self._privacy_note = add_privacy_note(body, privacy.NOTE_TRANSCRIPT)
 
     def on_settings_changed(self):
         pass
 
     def on_show(self):
-        self.picker.refresh()
-        self.speakers_path = self.picker.selected_path()
         self.refresh_sessions()
         self.refresh_prompts()
 
-    def _on_picker_change(self):
-        self.speakers_path = self.picker.selected_path()
+    def load_for_session(self, session: dict) -> None:
+        """Set the active session and derive speakers.json from its campaign_slug
+        (current library version), falling back to the session's stored path."""
+        self.session_id = int(session["id"])
+        self.active_slug = session.get("campaign_slug")
+        self.speakers_path = self._resolve_speakers_path(session)
+        self.load_session(self.session_id)
+
+    def _resolve_speakers_path(self, session: dict) -> str | None:
+        slug = session.get("campaign_slug")
+        if slug:
+            try:
+                return str(library.current_version_path(slug))
+            except FileNotFoundError:
+                pass
+        return session.get("speakers_json_path")
 
     def load_session(self, sid: int) -> None:
         """Populate from a saved session: select it, set speakers.json, and add
@@ -190,9 +203,8 @@ class SummarizeTab(ttk.Frame):
         if sid in self._session_index:
             self.session_combo.current(self._session_index.index(sid))
         s = db.get_session(sid) or {}
-        spk = s.get("speakers_json_path")
-        if spk and not self.picker.select_file(spk):
-            self.speakers_path = spk  # fallback: file unreadable/missing
+        self.active_slug = s.get("campaign_slug")
+        self.speakers_path = self._resolve_speakers_path(s)
         folder = s.get("transcripts_folder")
         if folder and os.path.isdir(folder):
             import glob
@@ -340,6 +352,16 @@ class SummarizeTab(ttk.Frame):
         if path:
             self.out_var.set(path)
 
+    def _campaign_npcs(self) -> list[str]:
+        """NPC names from the active campaign's current profile (for summary context)."""
+        if not getattr(self, "active_slug", None):
+            return []
+        try:
+            doc = library.get_current_doc(self.active_slug)
+        except Exception:
+            return []
+        return [n["name"] for n in doc.get("npcs", []) if isinstance(n, dict) and n.get("name")]
+
     # ---------- run ----------
 
     def _set_busy(self, b: bool):
@@ -362,7 +384,9 @@ class SummarizeTab(ttk.Frame):
         if self._busy:
             return
         if not self.speakers_path:
-            messagebox.showerror("CampaignScribe", "Pick a speakers.json first.")
+            messagebox.showerror(
+                "CampaignScribe", "No speaker profile loaded — open a session from Home first."
+            )
             return
         if not self.transcript_files:
             messagebox.showerror("CampaignScribe", "Add at least one transcript file.")
@@ -405,6 +429,7 @@ class SummarizeTab(ttk.Frame):
             return
 
         out = self.out_var.get().strip()
+        known_npcs = self._campaign_npcs()
         for i, tpath in enumerate(self.transcript_files, start=1):
             if self._cancel.is_set():
                 break
@@ -415,7 +440,12 @@ class SummarizeTab(ttk.Frame):
                 with open(tpath, encoding="utf-8") as f:
                     transcript = f.read()
                 summary = summarizer.summarize_part(
-                    transcript, speakers_doc, prompt_text, api_key, part_number=i
+                    transcript,
+                    speakers_doc,
+                    prompt_text,
+                    api_key,
+                    part_number=i,
+                    known_npcs=known_npcs,
                 )
                 self.part_summaries.append(summary)
                 out_path = os.path.join(out, f"summary_{i}.txt")
@@ -456,10 +486,12 @@ class SummarizeTab(ttk.Frame):
         self._set_busy(True)
         self._set_status("Consolidating with Claude…")
 
+        known_npcs = self._campaign_npcs()
+
         def worker():
             try:
                 result = summarizer.consolidate_summaries(
-                    self.part_summaries, speakers_doc, api_key
+                    self.part_summaries, speakers_doc, api_key, known_npcs=known_npcs
                 )
                 session_name = result.get("session_name") or "Session_Summary"
                 fname = summarizer.safe_filename(session_name) + ".docx"

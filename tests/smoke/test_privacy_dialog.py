@@ -64,7 +64,6 @@ def test_privacy_dialog_builds_and_shows_statement(app):
 
 
 def test_api_tabs_have_privacy_notes(app):
-    assert app.discover_tab._privacy_note.cget("text") == privacy.NOTE_SAMPLES
     assert app.transcribe_tab._privacy_note.cget("text") == privacy.NOTE_SAMPLES
     assert app.refine_tab._privacy_note.cget("text") == privacy.NOTE_SAMPLES
     assert app.summarize_tab._privacy_note.cget("text") == privacy.NOTE_TRANSCRIPT

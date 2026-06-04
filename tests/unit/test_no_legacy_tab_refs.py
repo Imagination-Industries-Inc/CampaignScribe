@@ -1,9 +1,9 @@
 """Guard against legacy numeric tab references reintroduced after the rename.
 
-The six tab classes/attributes use descriptive names (discover_tab, refine_tab,
-build_profile_tab, history_tab, transcribe_tab, summarize_tab). Stringly-typed
-cross-tab calls like self.app.tab5 are not caught by construction/smoke tests,
-so this static scan fails if any legacy numeric attribute reference returns.
+The tab classes/attributes use descriptive names (home_tab, transcribe_tab,
+summarize_tab, refine_tab). Stringly-typed cross-tab calls like self.app.tab5
+are not caught by construction/smoke tests, so this static scan fails if any
+legacy numeric attribute reference returns.
 """
 
 from __future__ import annotations

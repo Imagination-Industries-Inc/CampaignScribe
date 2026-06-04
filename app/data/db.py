@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     display_name TEXT NOT NULL DEFAULT 'Untitled Session',
     campaign_name TEXT,
+    campaign_slug TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     source_audio_files TEXT,
@@ -53,14 +54,23 @@ CREATE TABLE IF NOT EXISTS user_prompts (
 """
 
 
-SCHEMA_BASELINE = 1
+SCHEMA_BASELINE = 2
 
-# Incremental migrations for schema changes AFTER the baseline (v1). Each entry
-# is (target_version, function(conn)); they run once, in order, on existing
-# databases whose PRAGMA user_version is below the target. Example:
-#   def _m2(conn): conn.execute("ALTER TABLE sessions ADD COLUMN language TEXT")
-#   _MIGRATIONS = [(2, _m2)]
-_MIGRATIONS: list = []
+# list_sessions(campaign_slug=UNCATEGORIZED) lists loose/null-slug sessions.
+UNCATEGORIZED = "\x00__uncategorized__"
+
+# Incremental migrations for schema changes AFTER the baseline. Each entry is
+# (target_version, function(conn)); they run once, in order, on existing
+# databases whose PRAGMA user_version is below the target.
+
+
+def _m2(conn: sqlite3.Connection) -> None:
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(sessions)")}
+    if "campaign_slug" not in cols:
+        conn.execute("ALTER TABLE sessions ADD COLUMN campaign_slug TEXT")
+
+
+_MIGRATIONS: list = [(2, _m2)]
 
 # Columns callers may update via **fields. Guards the dynamic UPDATE builders
 # below against unexpected/untrusted column names (the values are already
@@ -68,6 +78,7 @@ _MIGRATIONS: list = []
 _SESSION_COLUMNS = {
     "display_name",
     "campaign_name",
+    "campaign_slug",
     "updated_at",
     "source_audio_files",
     "num_speakers_detected",
@@ -128,16 +139,20 @@ def get_conn() -> Iterator[sqlite3.Connection]:
 
 
 def create_session(
-    display_name: str, campaign_name: str = "", source_audio_files: list[str] | None = None
+    display_name: str,
+    campaign_name: str = "",
+    source_audio_files: list[str] | None = None,
+    campaign_slug: str | None = None,
 ) -> int:
     with get_conn() as c:
         cur = c.execute(
-            "INSERT INTO sessions(display_name, campaign_name, source_audio_files) "
-            "VALUES (?, ?, ?)",
+            "INSERT INTO sessions(display_name, campaign_name, source_audio_files, "
+            "campaign_slug) VALUES (?, ?, ?, ?)",
             (
                 display_name or "Untitled Session",
                 campaign_name or "",
                 json.dumps(source_audio_files or []),
+                campaign_slug,
             ),
         )
         return int(cur.lastrowid)
@@ -162,16 +177,22 @@ def get_session(session_id: int) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
-def list_sessions(search: str = "") -> list[dict[str, Any]]:
+def list_sessions(search: str = "", campaign_slug: str | None = None) -> list[dict[str, Any]]:
+    clauses, params = [], []
+    if search:
+        clauses.append("(display_name LIKE ? OR campaign_name LIKE ?)")
+        params += [f"%{search}%", f"%{search}%"]
+    if campaign_slug == UNCATEGORIZED:
+        clauses.append("campaign_slug IS NULL")
+    elif campaign_slug is not None:
+        clauses.append("campaign_slug = ?")
+        params.append(campaign_slug)
+    where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
     with get_conn() as c:
-        if search:
-            rows = c.execute(
-                "SELECT * FROM sessions WHERE display_name LIKE ? OR campaign_name LIKE ? "
-                "ORDER BY created_at DESC",
-                (f"%{search}%", f"%{search}%"),
-            ).fetchall()
-        else:
-            rows = c.execute("SELECT * FROM sessions ORDER BY created_at DESC").fetchall()
+        rows = c.execute(
+            f"SELECT * FROM sessions{where} ORDER BY id DESC",  # nosec B608 - static clause fragments; values parameterized
+            params,
+        ).fetchall()
     return [dict(r) for r in rows]
 
 

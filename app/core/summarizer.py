@@ -17,12 +17,21 @@ def _client(api_key: str):
     return make_client(api_key)
 
 
+def _npc_line(known_npcs: list[str] | None) -> str:
+    """A trailing prompt line naming the campaign's NPCs, or '' when none."""
+    names = [n for n in (known_npcs or []) if n]
+    if not names:
+        return ""
+    return "Known NPCs in this campaign: " + ", ".join(names) + "\n"
+
+
 def summarize_part(
     transcript_text: str,
     speakers_reference: dict[str, Any],
     summary_prompt: str,
     api_key: str,
     part_number: int = 1,
+    known_npcs: list[str] | None = None,
 ) -> str:
     """Run a single transcript part through Claude with the user's chosen prompt."""
     client = _client(api_key)
@@ -41,7 +50,8 @@ def summarize_part(
         f"========================================================\n"
         f"CAMPAIGN CONTEXT (from speakers.json):\n"
         f"========================================================\n"
-        f"{campaign_context_block}\n\n"
+        f"{campaign_context_block}\n"
+        f"{_npc_line(known_npcs)}\n"
         f"========================================================\n"
         f"TRANSCRIPT — PART {part_number}\n"
         f"========================================================\n"
@@ -60,6 +70,7 @@ def consolidate_summaries(
     part_summaries: list[str],
     speakers_reference: dict[str, Any],
     api_key: str,
+    known_npcs: list[str] | None = None,
 ) -> dict[str, str]:
     """Consolidate per-part summaries into a unified session summary."""
     client = _client(api_key)
@@ -78,7 +89,8 @@ def consolidate_summaries(
     prompt = (
         "You are consolidating individual part summaries from a D&D session into one "
         "unified session summary.\n\n"
-        f"CAMPAIGN CONTEXT:\n{context_block}\n\n"
+        f"CAMPAIGN CONTEXT:\n{context_block}\n"
+        f"{_npc_line(known_npcs)}\n"
         f"INDIVIDUAL PART SUMMARIES:\n{parts_block}\n\n"
         "Produce a single unified session summary following the same structure as the "
         "individual summaries but synthesized across all parts. De-duplicate events, "

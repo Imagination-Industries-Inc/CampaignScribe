@@ -19,6 +19,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "last_speakers_json": "",
     "last_campaign": "",
     "library_import_prompted": False,
+    "sessions_backlinked": False,
     "last_output_folder": "",
     "last_audio_dir": "",
     "last_json_dir": "",
@@ -26,6 +27,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "window_height": 760,
     "window_x": -1,
     "window_y": -1,
+    "discover_sample_minutes": 0,  # 0 = discover on the full (first) audio file; >0 caps to N minutes
+    "discover_whisper_model": "small",  # lighter model used only during speaker discovery
 }
 
 
