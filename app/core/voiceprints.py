@@ -94,3 +94,25 @@ def update(slug: str, person: str, embedding: np.ndarray) -> None:
 def get_centroids(slug: str) -> dict[str, np.ndarray]:
     """{person: L2-normalized centroid vector} for cosine matching."""
     return {p: rec["centroid"] for p, rec in load(slug).items()}
+
+
+def match(
+    slug: str,
+    cluster_embeddings: dict[str, np.ndarray],
+    threshold: float,
+) -> dict[str, tuple[str | None, float]]:
+    """Cosine each cluster vs each person centroid. Returns
+    {cluster: (best_person, score)}; (None, best_score) when below threshold
+    or no fingerprints exist (best_score 0.0 for an empty store)."""
+    centroids = get_centroids(slug)
+    out: dict[str, tuple[str | None, float]] = {}
+    for cid, emb in cluster_embeddings.items():
+        q = _normalize(emb)
+        best_person: str | None = None
+        best_score = 0.0
+        for person, cen in centroids.items():
+            score = float(q @ cen)  # both L2-normalized -> cosine
+            if score > best_score:
+                best_person, best_score = person, score
+        out[cid] = (best_person, best_score) if best_score >= threshold else (None, best_score)
+    return out
