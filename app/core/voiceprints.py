@@ -9,6 +9,8 @@ uploaded; never written into the versioned speakers.json docs.
 from __future__ import annotations
 
 import json
+import os
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -45,9 +47,13 @@ def load(slug: str) -> dict[str, dict[str, Any]]:
         except (OSError, ValueError):
             meta = {}
     out: dict[str, dict[str, Any]] = {}
-    with np.load(npz_path) as data:
-        for person in data.files:
-            raw = np.asarray(data[person], dtype="float32")
+    try:
+        npz_data = np.load(npz_path)
+    except (OSError, ValueError, zipfile.BadZipFile):
+        return {}
+    with npz_data:
+        for person in npz_data.files:
+            raw = np.asarray(npz_data[person], dtype="float32")
             m = meta.get(person, {})
             out[person] = {
                 "centroid": _normalize(raw),
@@ -62,11 +68,15 @@ def _save(slug: str, store: dict[str, dict[str, Any]]) -> None:
     npz_path, json_path = _paths(slug)
     npz_path.parent.mkdir(parents=True, exist_ok=True)
     arrays = {p: np.asarray(rec["raw"], dtype="float32") for p, rec in store.items()}
-    np.savez(npz_path, **arrays)
+    npz_tmp = npz_path.with_name("fingerprints.tmp.npz")
+    np.savez(npz_tmp, **arrays)
+    os.replace(npz_tmp, npz_path)
     meta = {
         p: {"count": int(rec["count"]), "updated_at": rec["updated_at"]} for p, rec in store.items()
     }
-    json_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    json_tmp = json_path.with_suffix(".json.tmp")
+    json_tmp.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    os.replace(json_tmp, json_path)
 
 
 def update(slug: str, person: str, embedding: np.ndarray) -> None:

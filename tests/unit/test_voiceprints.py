@@ -102,3 +102,14 @@ def test_config_has_voice_match_keys():
 
     assert config.DEFAULT_CONFIG.get("voice_match_enabled") is True
     assert 0.0 < config.DEFAULT_CONFIG.get("voice_match_threshold") < 1.0
+
+
+def test_load_corrupt_npz_returns_empty(tmp_path):
+    slug = library.create_campaign("Strahd")
+    voiceprints.update(slug, "Mike", np.array([1.0, 0.0, 0.0], dtype="float32"))
+    # corrupt the npz on disk
+    npz = library._campaign_dir(slug) / "fingerprints.npz"
+    npz.write_bytes(b"not a real npz")
+    # load must degrade gracefully, not crash
+    assert voiceprints.load(slug) == {}
+    assert voiceprints.get_centroids(slug) == {}
