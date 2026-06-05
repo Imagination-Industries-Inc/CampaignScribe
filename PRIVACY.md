@@ -6,6 +6,7 @@ CampaignScribe is built to collect as little as possible and to be honest and ex
 - **Your audio recordings** — converted and transcribed locally; audio never leaves your machine.
 - **The local database** (session metadata) and your saved **transcripts, summaries, and `speakers.json`**.
 - **Your Anthropic API key and HuggingFace token** — stored in Windows Credential Manager; sent only to the respective service to authenticate.
+- **Voice fingerprints (optional, local only).** To recognize returning players across sessions, CampaignScribe can derive a compact numeric "voice fingerprint" for each tracked speaker from your audio and store it **on your device only**, alongside that campaign's speaker profiles. Fingerprints are never uploaded or shared, are used only to pre-fill speaker assignments for you to confirm, and can be disabled in Settings.
 
 ## Sent to the Anthropic Claude API (and why)
 - **Transcript excerpts** (speaker samples) — to identify who is speaking (Discover, Transcribe, Refine).
