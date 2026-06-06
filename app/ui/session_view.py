@@ -69,6 +69,13 @@ class SessionView(tk.Toplevel):
         self.confirm_inner.pack(fill="x", padx=4, pady=4)
         self.count_var = tk.StringVar()
         ttk.Label(confirm_lf, textvariable=self.count_var, style=LBL_DIM).pack(anchor="w", padx=4)
+        countrow = ttk.Frame(confirm_lf)
+        countrow.pack(fill="x", padx=4, pady=2)
+        ttk.Label(countrow, text="Expected voices for this run:").pack(side="left")
+        self.count_spin_var = tk.IntVar(value=self.expected_speaker_count())
+        ttk.Spinbox(countrow, from_=1, to=20, textvariable=self.count_spin_var, width=6).pack(
+            side="left", padx=6
+        )
         crow = ttk.Frame(confirm_lf)
         crow.pack(fill="x", padx=4, pady=4)
         ttk.Button(crow, text="＋ add guest", style=BTN_GHOST, command=self._add_guest_dialog).pack(
@@ -152,11 +159,17 @@ class SessionView(tk.Toplevel):
             self.add_guest(name.strip())
 
     def _update_count(self) -> None:
-        self.count_var.set(f"Expected voices: {self.expected_speaker_count()}")
+        n = self.expected_speaker_count()
+        self.count_var.set(f"Present in roster: {n}")
+        if hasattr(self, "count_spin_var"):
+            self.count_spin_var.set(n)
 
     def expected_speaker_count(self) -> int:
         present = [n for n in (self._roster + self._guests) if n not in self._absent]
         return len(present)
+
+    def _run_params_for_transcribe(self) -> dict:
+        return {"expected_count": int(self.count_spin_var.get() or 0)}
 
     # ---------- ② review ----------
 
