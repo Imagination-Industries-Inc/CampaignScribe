@@ -36,7 +36,7 @@
 # the detected-speaker count in the expected direction on real audio.
 import sys, warnings
 warnings.filterwarnings("ignore")
-from app.core.transcriber import TranscriptionPipeline, load  # load=convert handled below
+from app.core.transcriber import TranscriptionPipeline
 from app import config
 
 WAV = sys.argv[1] if len(sys.argv) > 1 else r"H:\CS Test Audio\testaudio.wav"
