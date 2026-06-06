@@ -6,10 +6,16 @@ import json
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
+from app import config
 from app.core import library, speakers_io
 from app.data import db
 from app.ui.common import ScrollableFrame
 from app.ui.theme import BTN_ACCENT, BTN_GHOST, LBL_DIM, S_2, S_3
+
+try:
+    from app.core import voiceprints as _voiceprints
+except Exception:  # pragma: no cover — import fails only when numpy absent
+    _voiceprints = None  # type: ignore[assignment]
 
 IGNORE_CHOICE = "__ignore__"
 GUEST_CHOICE = "__guest__"
@@ -167,6 +173,7 @@ class SessionView(tk.Toplevel):
         choices = [c for c in (self._roster + self._guests) if c not in self._absent]
         options = choices + [GUEST_CHOICE, IGNORE_CHOICE]
         self._review_vars: dict[str, tk.StringVar] = {}
+        self._chip_labels: dict[str, ttk.Label] = {}
         for cid in self._detected_clusters():
             row = ttk.Frame(self.review_inner)
             row.pack(fill="x", pady=2)
@@ -176,11 +183,56 @@ class SessionView(tk.Toplevel):
             ttk.Combobox(row, textvariable=var, values=options, state="readonly", width=30).pack(
                 side="left"
             )
+            chip = ttk.Label(row, text="", style=LBL_DIM)
+            chip.pack(side="left", padx=(S_2, 0))
+            self._chip_labels[cid] = chip
+        self._prefill_from_voicematch()
 
     def assign_cluster(self, cluster_id: str, target: str) -> None:
         self._assignments[cluster_id] = target
         if hasattr(self, "_review_vars") and cluster_id in self._review_vars:
             self._review_vars[cluster_id].set(target)
+
+    def _prefill_from_voicematch(self) -> None:
+        """Pre-fill ② cluster assignments from voice fingerprint matches.
+
+        Reads stashed embeddings (peek, not pop — preserved for the learning
+        loop in _save_session_mapping) and pre-sets each cluster's StringVar
+        to the matched roster person when the cosine score meets the threshold.
+        A confidence chip label is updated for every cluster regardless.
+        Best-effort: any exception leaves ② exactly as the manual flow would.
+        """
+        self._cluster_embeddings: dict = {}
+        self._match_scores: dict = {}
+        try:
+            if _voiceprints is None or not self.slug:
+                return
+            cfg = config.load_config()
+            if not cfg.get("voice_match_enabled", True):
+                return
+            emb = _voiceprints.peek_session_embeddings(self.session_id)
+            if not emb:
+                return
+            self._cluster_embeddings = emb
+            threshold = float(cfg.get("voice_match_threshold", 0.70))
+            results = _voiceprints.match(self.slug, emb, threshold)
+            for cid, (person, score) in results.items():
+                self._match_scores[cid] = (person, score)
+                if person and score >= threshold:
+                    # Pre-set via assign_cluster so both _assignments and the
+                    # StringVar are updated — identical state to a manual pick.
+                    var = self._review_vars.get(cid)
+                    if var is not None and not var.get():
+                        self.assign_cluster(cid, person)
+                # Update confidence chip label for this cluster row.
+                lbl = self._chip_labels.get(cid)
+                if lbl is not None:
+                    if person:
+                        lbl.config(text=f"{person} · {score:.2f}")
+                    else:
+                        lbl.config(text=f"~ {score:.2f}" if score > 0.0 else "no match")
+        except Exception:
+            pass  # Never crash ② — degrade to manual silently
 
     def _collect_assignments(self) -> dict[str, str]:
         # Live combobox StringVar wins over programmatic assign_cluster values —
@@ -208,6 +260,26 @@ class SessionView(tk.Toplevel):
                     "include_in_tracking": 0 if ignore else 1,
                 },
             )
+
+        # Voice Auto-Match (Spec 2): learn from confirmations — feed each confirmed
+        # (cluster -> roster person) embedding into that person's fingerprint. Best-effort.
+        try:
+            cfg = config.load_config()
+            if cfg.get("voice_match_enabled", True) and self.slug and _voiceprints is not None:
+                emb_map = (
+                    getattr(self, "_cluster_embeddings", {})
+                    or _voiceprints.peek_session_embeddings(self.session_id)
+                    or {}
+                )
+                roster = set(self._roster)  # real campaign persons only; guests excluded
+                for cid, target in self._collect_assignments().items():
+                    if not target or target in (IGNORE_CHOICE, GUEST_CHOICE):
+                        continue
+                    if target in roster and cid in emb_map:
+                        _voiceprints.update(self.slug, target, emb_map[cid])
+                _voiceprints.pop_session_embeddings(self.session_id)  # consume once learned
+        except Exception:  # noqa: BLE001 — learning is best-effort; never block saving
+            pass
 
     def _save_to_profile(self) -> None:
         self._save_session_mapping()

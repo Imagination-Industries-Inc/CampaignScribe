@@ -10,6 +10,22 @@ from collections.abc import Callable
 from typing import Any
 
 
+def load_waveform_dict(wav_path: str) -> dict:
+    """Preload a 16k-mono PCM wav into a pyannote waveform dict (sidesteps torchcodec)."""
+    import wave
+
+    import numpy as np
+    import torch
+
+    with wave.open(wav_path, "rb") as wf:
+        sr, ch = wf.getframerate(), wf.getnchannels()
+        raw = wf.readframes(wf.getnframes())
+    a = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+    if ch > 1:
+        a = a.reshape(-1, ch).mean(axis=1)
+    return {"waveform": torch.from_numpy(a[None, :]), "sample_rate": int(sr)}
+
+
 def _detect_nvidia_gpu_via_smi() -> str | None:
     """Use nvidia-smi to detect a physical NVIDIA GPU even when CUDA torch isn't loaded."""
     import shutil
@@ -201,6 +217,41 @@ class TranscriptionPipeline:
                 }
             )
         return normalized
+
+    def extract_speaker_embeddings(self, audio_input: dict) -> dict[str, object]:
+        """Per-cluster 256-d voice embeddings via community-1 DiarizeOutput.speaker_embeddings.
+
+        Runs the diarization pipeline on a preloaded waveform dict (see load_waveform_dict)
+        and returns {SPEAKER_xx: np.ndarray(256,)} for each detected cluster.
+
+        NOTE: This runs diarization a second time, separately from the transcript pass —
+        chosen for v1 SAFETY (zero risk to the proven transcript path). A future single-pass
+        unification (reuse the transcript's DiarizeOutput) is a perf optimisation.
+
+        Returns {} on ANY failure so a problem here can never break transcription or the app.
+        """
+        try:
+            import numpy as np
+
+            self._load_models()  # ensure self._diarize exists
+            pipe = getattr(self._diarize, "model", None) or getattr(self._diarize, "pipeline", None)
+            if pipe is None:
+                return {}
+            out = pipe(audio_input)
+            dia = getattr(out, "speaker_diarization", None)
+            emb = getattr(out, "speaker_embeddings", None)
+            if dia is None or emb is None:
+                return {}
+            labels = sorted(dia.labels())
+            emb = np.asarray(emb)
+            if emb.ndim != 2 or emb.shape[0] != len(labels):
+                return {}
+            return {lab: emb[i].astype("float32") for i, lab in enumerate(labels)}
+        except Exception as e:  # noqa: BLE001 - extraction is best-effort; never break transcription
+            from app import config
+
+            config.log_exception("transcriber.extract_speaker_embeddings", e)
+            return {}
 
     def close(self) -> None:
         """Release models and free GPU memory between jobs. Idempotent."""
