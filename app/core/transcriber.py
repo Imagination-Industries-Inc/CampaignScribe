@@ -10,20 +10,12 @@ from collections.abc import Callable
 from typing import Any
 
 
-def load_waveform_dict(wav_path: str) -> dict:
-    """Preload a 16k-mono PCM wav into a pyannote waveform dict (sidesteps torchcodec)."""
-    import wave
-
+def coerce_embeddings(raw: dict | None) -> dict:
+    """Convert a raw {label: list[float]} dict from return_embeddings=True to
+    {label: np.ndarray(float32)}.  Returns {} for None or empty input."""
     import numpy as np
-    import torch
 
-    with wave.open(wav_path, "rb") as wf:
-        sr, ch = wf.getframerate(), wf.getnchannels()
-        raw = wf.readframes(wf.getnframes())
-    a = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
-    if ch > 1:
-        a = a.reshape(-1, ch).mean(axis=1)
-    return {"waveform": torch.from_numpy(a[None, :]), "sample_rate": int(sr)}
+    return {lab: np.asarray(vec, dtype="float32") for lab, vec in (raw or {}).items()}
 
 
 def _detect_nvidia_gpu_via_smi() -> str | None:
@@ -132,6 +124,7 @@ class TranscriptionPipeline:
         self._model = None
         self._diarize = None
         self._align_cache: dict[str, Any] = {}
+        self._last_speaker_embeddings: dict = {}
 
         gpu = check_gpu()
         if force_cpu or not gpu.get("cuda_available", False):
@@ -200,7 +193,12 @@ class TranscriptionPipeline:
         if num_speakers and num_speakers > 0:
             kwargs["min_speakers"] = num_speakers
             kwargs["max_speakers"] = num_speakers
-        diarize_segments = self._diarize(wav_path, **kwargs)
+        try:
+            diarize_segments, _spk_emb = self._diarize(wav_path, return_embeddings=True, **kwargs)
+            self._last_speaker_embeddings = coerce_embeddings(_spk_emb)
+        except Exception:  # noqa: BLE001 - embeddings are best-effort; never break the transcript
+            diarize_segments = self._diarize(wav_path, **kwargs)  # proven path, no embeddings
+            self._last_speaker_embeddings = {}
         result = whisperx.assign_word_speakers(diarize_segments, result)
 
         if progress:
@@ -218,46 +216,12 @@ class TranscriptionPipeline:
             )
         return normalized
 
-    def extract_speaker_embeddings(self, audio_input: dict) -> dict[str, object]:
-        """Per-cluster 256-d voice embeddings via community-1 DiarizeOutput.speaker_embeddings.
-
-        Runs the diarization pipeline on a preloaded waveform dict (see load_waveform_dict)
-        and returns {SPEAKER_xx: np.ndarray(256,)} for each detected cluster.
-
-        NOTE: This runs diarization a second time, separately from the transcript pass —
-        chosen for v1 SAFETY (zero risk to the proven transcript path). A future single-pass
-        unification (reuse the transcript's DiarizeOutput) is a perf optimisation.
-
-        Returns {} on ANY failure so a problem here can never break transcription or the app.
-        """
-        try:
-            import numpy as np
-
-            self._load_models()  # ensure self._diarize exists
-            pipe = getattr(self._diarize, "model", None) or getattr(self._diarize, "pipeline", None)
-            if pipe is None:
-                return {}
-            out = pipe(audio_input)
-            dia = getattr(out, "speaker_diarization", None)
-            emb = getattr(out, "speaker_embeddings", None)
-            if dia is None or emb is None:
-                return {}
-            labels = sorted(dia.labels())
-            emb = np.asarray(emb)
-            if emb.ndim != 2 or emb.shape[0] != len(labels):
-                return {}
-            return {lab: emb[i].astype("float32") for i, lab in enumerate(labels)}
-        except Exception as e:  # noqa: BLE001 - extraction is best-effort; never break transcription
-            from app import config
-
-            config.log_exception("transcriber.extract_speaker_embeddings", e)
-            return {}
-
     def close(self) -> None:
         """Release models and free GPU memory between jobs. Idempotent."""
         self._model = None
         self._diarize = None
         self._align_cache.clear()
+        self._last_speaker_embeddings = {}
         import gc
 
         gc.collect()
