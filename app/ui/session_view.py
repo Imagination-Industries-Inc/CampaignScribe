@@ -416,7 +416,9 @@ class SessionView(tk.Toplevel):
     def _start_transcription(self) -> None:
         self._save_session_mapping()
         if hasattr(self.app, "open_session_stage"):
-            self.app.open_session_stage(self.session_id, "transcribe")
+            self.app.open_session_stage(
+                self.session_id, "transcribe", run_params=self._run_params_for_transcribe()
+            )
 
     def _back_home(self) -> None:
         self.destroy()
