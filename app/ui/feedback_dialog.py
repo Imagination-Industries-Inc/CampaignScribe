@@ -96,6 +96,7 @@ class FeedbackSupportDialog(tk.Toplevel):
         preview = tk.Toplevel(self)
         preview.title("Diagnostics preview")
         preview.transient(self)
+        preview.grab_set()
         preview.geometry("620x460")
         ttk.Label(
             preview,
@@ -122,15 +123,24 @@ class FeedbackSupportDialog(tk.Toplevel):
                 filetypes=[("Text file", "*.txt")],
                 initialfile="campaignscribe-diagnostics.txt",
             )
-            if path:
+            if not path:
+                return
+            try:
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(bundle)
+            except OSError as e:
+                messagebox.showerror("Save failed", f"Could not save: {e}", parent=preview)
+
+        def _close():
+            preview.destroy()
+            self.grab_set()  # restore the parent dialog's modal grab
 
         ttk.Button(row, text="Copy to clipboard", style=BTN_GHOST, command=_copy).pack(side="left")
         ttk.Button(row, text="Save as .txt…", style=BTN_GHOST, command=_save).pack(
             side="left", padx=6
         )
-        ttk.Button(row, text="Close", style=BTN_GHOST, command=preview.destroy).pack(side="right")
+        ttk.Button(row, text="Close", style=BTN_GHOST, command=_close).pack(side="right")
+        preview.protocol("WM_DELETE_WINDOW", _close)
 
     def _email_feedback(self) -> None:
         from app import __version__

@@ -30,10 +30,27 @@ def test_dialog_opens_with_actions(root, monkeypatch):
     try:
         dlg._email_feedback()
         assert opened and opened[-1].startswith("mailto:")
+        # Email body carries the compact build-info header, NOT the error-log bundle.
+        assert "CampaignScribe" in opened[-1]
+        assert "errors.log" not in opened[-1]
         dlg._open_discussions()
         assert opened[-1].endswith("/discussions")
         dlg._report_problem()
         assert "/issues/new?" in opened[-1]
+    finally:
+        dlg.destroy()
+
+
+def test_dialog_renders_four_sections(root):
+    from tkinter import ttk
+
+    from app.ui import feedback_dialog
+
+    dlg = feedback_dialog.FeedbackSupportDialog(root)
+    root.update_idletasks()
+    try:
+        frames = [w for w in dlg.winfo_children() if isinstance(w, ttk.Frame)]
+        assert len(frames) == 4
     finally:
         dlg.destroy()
 
