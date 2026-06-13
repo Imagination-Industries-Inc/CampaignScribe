@@ -13,7 +13,7 @@ def test_scrub_replaces_user_home_with_tilde(monkeypatch, tmp_path):
 def test_scrub_drops_email_addresses():
     out = diagnostics.scrub("contact bob.smith@example.com for help")
     assert "bob.smith@example.com" not in out
-    assert "@" not in out or "example.com" not in out
+    assert "[email removed]" in out
 
 
 def test_bundle_has_version_os_gpu(monkeypatch):
@@ -51,3 +51,31 @@ def test_email_header_is_compact_no_log(monkeypatch, tmp_path):
     from app import __version__
 
     assert __version__ in header
+
+
+def test_scrub_is_case_insensitive_for_windows_paths():
+    out = diagnostics.scrub(r"opened c:\users\alice\AppData\x.log")
+    assert "alice" not in out
+
+
+def test_scrub_handles_username_with_space():
+    out = diagnostics.scrub(r"path C:\Users\john doe\AppData\errors.log")
+    assert "doe" not in out
+    assert "john" not in out
+
+
+def test_scrub_drops_multiple_emails():
+    out = diagnostics.scrub("a@x.com and b@y.org")
+    assert "a@x.com" not in out and "b@y.org" not in out
+
+
+def test_bundle_scrubs_pii_in_log_tail(monkeypatch, tmp_path):
+    # The security-critical flow: a home path in errors.log must be scrubbed in the full bundle.
+    log = tmp_path / "errors.log"
+    log.write_text(
+        r"Traceback: C:\Users\alice\AppData\Roaming\CampaignScribe\boom.py", encoding="utf-8"
+    )
+    monkeypatch.setattr(diagnostics.config, "get_error_log_path", lambda: log)
+    out = diagnostics.build_diagnostics_bundle(include_log_tail=True)
+    assert "alice" not in out
+    assert "~" in out

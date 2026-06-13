@@ -17,7 +17,10 @@ LOG_TAIL_LINES = 200
 
 
 def scrub(text: str) -> str:
-    """Defense-in-depth PII scrub: user home -> ~, drop email addresses."""
+    """Defense-in-depth PII scrub: user home -> ~, drop email addresses.
+
+    UNC paths (\\\\server\\...) are not scrubbed.
+    """
     if not text:
         return text
     out = text
@@ -25,8 +28,11 @@ def scrub(text: str) -> str:
     home = os.path.expanduser("~")
     if home and home != "~":
         out = out.replace(home, "~")
-    out = re.sub(r"[A-Za-z]:\\Users\\[^\\\/\s]+", "~", out)
-    out = re.sub(r"/home/[^/\s]+", "~", out)
+    # Fallback path scrub (defense-in-depth on the log tail). Match up to the next
+    # path separator so usernames containing spaces are fully removed; IGNORECASE
+    # because Windows paths are case-insensitive. Over-scrubbing is safe; leaking is not.
+    out = re.sub(r"[A-Za-z]:\\Users\\[^\\/]+", "~", out, flags=re.IGNORECASE)
+    out = re.sub(r"/home/[^/]+", "~", out)
     # Drop email addresses.
     out = re.sub(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", "[email removed]", out)
     return out
